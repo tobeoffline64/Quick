@@ -1,0 +1,291 @@
+use crate::canvas::{Canvas, DrawCommand};
+use quick_core::geometry::{BorderRadius, Color, Point, Rect};
+
+pub struct SoftwareRasterizer;
+
+impl SoftwareRasterizer {
+    /// Rasterize all Canvas draw commands into a 32-bit ARGB/XRGB pixel buffer.
+    pub fn render_to_buffer(canvas: &Canvas, width: u32, height: u32, buffer: &mut [u32]) {
+        if buffer.len() < (width * height) as usize {
+            return;
+        }
+
+        for cmd in canvas.commands() {
+            match cmd {
+                DrawCommand::Clear(c) => {
+                    let pixel = c.to_argb_u32();
+                    buffer.fill(pixel);
+                }
+                DrawCommand::FillRect(rect, color) => {
+                    Self::fill_rect(buffer, width, height, *rect, *color);
+                }
+                DrawCommand::StrokeRect(rect, color, stroke_w) => {
+                    Self::stroke_rect(buffer, width, height, *rect, *color, *stroke_w);
+                }
+                DrawCommand::FillRoundedRect(rect, radius, color) => {
+                    Self::fill_rounded_rect(buffer, width, height, *rect, *radius, *color);
+                }
+                DrawCommand::StrokeRoundedRect(rect, radius, color, stroke_w) => {
+                    Self::stroke_rounded_rect(buffer, width, height, *rect, *radius, *color, *stroke_w);
+                }
+                DrawCommand::DrawText { text, origin, color, font_size, .. } => {
+                    Self::draw_text(buffer, width, height, text, *origin, *color, *font_size);
+                }
+                DrawCommand::DrawLine { start, end, color, width: stroke_w } => {
+                    Self::draw_line(buffer, width, height, *start, *end, *color, *stroke_w);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn set_pixel(buffer: &mut [u32], width: u32, height: u32, x: i32, y: i32, color: Color) {
+        if x >= 0 && x < width as i32 && y >= 0 && y < height as i32 {
+            let idx = (y as u32 * width + x as u32) as usize;
+            if color.a == 255 {
+                buffer[idx] = color.to_argb_u32();
+            } else if color.a > 0 {
+                // Alpha blend
+                let dst = buffer[idx];
+                let dst_r = ((dst >> 16) & 0xFF) as u32;
+                let dst_g = ((dst >> 8) & 0xFF) as u32;
+                let dst_b = (dst & 0xFF) as u32;
+
+                let alpha = color.a as u32;
+                let inv_alpha = 255 - alpha;
+
+                let r = (color.r as u32 * alpha + dst_r * inv_alpha) / 255;
+                let g = (color.g as u32 * alpha + dst_g * inv_alpha) / 255;
+                let b = (color.b as u32 * alpha + dst_b * inv_alpha) / 255;
+
+                buffer[idx] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+            }
+        }
+    }
+
+    fn fill_rect(buffer: &mut [u32], width: u32, height: u32, rect: Rect, color: Color) {
+        let x0 = rect.min_x().max(0.0) as i32;
+        let y0 = rect.min_y().max(0.0) as i32;
+        let x1 = rect.max_x().min(width as f32) as i32;
+        let y1 = rect.max_y().min(height as f32) as i32;
+
+        for y in y0..y1 {
+            for x in x0..x1 {
+                Self::set_pixel(buffer, width, height, x, y, color);
+            }
+        }
+    }
+
+    fn stroke_rect(buffer: &mut [u32], width: u32, height: u32, rect: Rect, color: Color, stroke_w: f32) {
+        let sw = stroke_w.max(1.0);
+        // Top edge
+        Self::fill_rect(buffer, width, height, Rect::new(rect.origin.x, rect.origin.y, rect.size.width, sw), color);
+        // Bottom edge
+        Self::fill_rect(buffer, width, height, Rect::new(rect.origin.x, rect.origin.y + rect.size.height - sw, rect.size.width, sw), color);
+        // Left edge
+        Self::fill_rect(buffer, width, height, Rect::new(rect.origin.x, rect.origin.y, sw, rect.size.height), color);
+        // Right edge
+        Self::fill_rect(buffer, width, height, Rect::new(rect.origin.x + rect.size.width - sw, rect.origin.y, sw, rect.size.height), color);
+    }
+
+    fn fill_rounded_rect(buffer: &mut [u32], width: u32, height: u32, rect: Rect, radius: BorderRadius, color: Color) {
+        let r = radius.top_left.min(rect.size.width / 2.0).min(rect.size.height / 2.0);
+        if r <= 1.0 {
+            Self::fill_rect(buffer, width, height, rect, color);
+            return;
+        }
+
+        let x0 = rect.min_x().max(0.0) as i32;
+        let y0 = rect.min_y().max(0.0) as i32;
+        let x1 = rect.max_x().min(width as f32) as i32;
+        let y1 = rect.max_y().min(height as f32) as i32;
+
+        for y in y0..y1 {
+            let py = y as f32 + 0.5;
+            for x in x0..x1 {
+                let px = x as f32 + 0.5;
+
+                // Check 4 corner zones
+                let in_top_left = px < rect.min_x() + r && py < rect.min_y() + r;
+                let in_top_right = px > rect.max_x() - r && py < rect.min_y() + r;
+                let in_bottom_left = px < rect.min_x() + r && py > rect.max_y() - r;
+                let in_bottom_right = px > rect.max_x() - r && py > rect.max_y() - r;
+
+                let inside = if in_top_left {
+                    let dx = px - (rect.min_x() + r);
+                    let dy = py - (rect.min_y() + r);
+                    dx * dx + dy * dy <= r * r
+                } else if in_top_right {
+                    let dx = px - (rect.max_x() - r);
+                    let dy = py - (rect.min_y() + r);
+                    dx * dx + dy * dy <= r * r
+                } else if in_bottom_left {
+                    let dx = px - (rect.min_x() + r);
+                    let dy = py - (rect.max_y() - r);
+                    dx * dx + dy * dy <= r * r
+                } else if in_bottom_right {
+                    let dx = px - (rect.max_x() - r);
+                    let dy = py - (rect.max_y() - r);
+                    dx * dx + dy * dy <= r * r
+                } else {
+                    true
+                };
+
+                if inside {
+                    Self::set_pixel(buffer, width, height, x, y, color);
+                }
+            }
+        }
+    }
+
+    fn stroke_rounded_rect(buffer: &mut [u32], width: u32, height: u32, rect: Rect, radius: BorderRadius, color: Color, stroke_w: f32) {
+        let sw = stroke_w.max(1.0);
+        let inner = rect.inset(quick_core::geometry::Insets::all(sw));
+        let r = radius.top_left.min(rect.size.width / 2.0).min(rect.size.height / 2.0);
+
+        let x0 = rect.min_x().max(0.0) as i32;
+        let y0 = rect.min_y().max(0.0) as i32;
+        let x1 = rect.max_x().min(width as f32) as i32;
+        let y1 = rect.max_y().min(height as f32) as i32;
+
+        for y in y0..y1 {
+            let py = y as f32 + 0.5;
+            for x in x0..x1 {
+                let px = x as f32 + 0.5;
+
+                let in_outer = if px < rect.min_x() + r && py < rect.min_y() + r {
+                    let dx = px - (rect.min_x() + r);
+                    let dy = py - (rect.min_y() + r);
+                    dx * dx + dy * dy <= r * r
+                } else if px > rect.max_x() - r && py < rect.min_y() + r {
+                    let dx = px - (rect.max_x() - r);
+                    let dy = py - (rect.min_y() + r);
+                    dx * dx + dy * dy <= r * r
+                } else if px < rect.min_x() + r && py > rect.max_y() - r {
+                    let dx = px - (rect.min_x() + r);
+                    let dy = py - (rect.max_y() - r);
+                    dx * dx + dy * dy <= r * r
+                } else if px > rect.max_x() - r && py > rect.max_y() - r {
+                    let dx = px - (rect.max_x() - r);
+                    let dy = py - (rect.max_y() - r);
+                    dx * dx + dy * dy <= r * r
+                } else {
+                    true
+                };
+
+                let in_inner = inner.contains(Point::new(px, py));
+
+                if in_outer && !in_inner {
+                    Self::set_pixel(buffer, width, height, x, y, color);
+                }
+            }
+        }
+    }
+
+    fn draw_line(buffer: &mut [u32], width: u32, height: u32, start: Point, end: Point, color: Color, stroke_w: f32) {
+        let dx = (end.x - start.x).abs();
+        let dy = (end.y - start.y).abs();
+        let steps = dx.max(dy).max(1.0) as usize;
+
+        for i in 0..=steps {
+            let t = i as f32 / steps as f32;
+            let x = start.x + (end.x - start.x) * t;
+            let y = start.y + (end.y - start.y) * t;
+            Self::fill_rect(
+                buffer,
+                width,
+                height,
+                Rect::new(x - stroke_w / 2.0, y - stroke_w / 2.0, stroke_w, stroke_w),
+                color,
+            );
+        }
+    }
+
+    fn draw_text(buffer: &mut [u32], width: u32, height: u32, text: &str, origin: Point, color: Color, font_size: f32) {
+        let scale = (font_size / 14.0).max(1.0);
+        let mut cur_x = origin.x as i32;
+        let cur_y = (origin.y - font_size * 0.8) as i32;
+
+        for ch in text.chars() {
+            if ch == '\n' {
+                cur_x = origin.x as i32;
+                cur_y += (font_size * 1.3) as i32;
+                continue;
+            }
+
+            Self::draw_char_bitmap(buffer, width, height, ch, cur_x, cur_y, color, scale);
+            cur_x += (8.0 * scale) as i32;
+        }
+    }
+
+    fn draw_char_bitmap(buffer: &mut [u32], width: u32, height: u32, ch: char, ox: i32, oy: i32, color: Color, scale: f32) {
+        let glyph = get_bitmap_glyph(ch);
+        let s = scale.round() as i32;
+
+        for row in 0..12 {
+            let bits = glyph[row as usize];
+            for col in 0..8 {
+                if (bits & (1 << (7 - col))) != 0 {
+                    for sy in 0..s {
+                        for sx in 0..s {
+                            Self::set_pixel(buffer, width, height, ox + col * s + sx, oy + row * s + sy, color);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Compact 8x12 embedded font table for basic ASCII rendering
+fn get_bitmap_glyph(ch: char) -> &'static [u8; 12] {
+    match ch {
+        'A' | 'a' => &[0x38, 0x6C, 0xC6, 0xC6, 0xFE, 0xC6, 0xC6, 0xC6, 0x00, 0x00, 0x00, 0x00],
+        'B' | 'b' => &[0xFC, 0x66, 0x66, 0x7C, 0x66, 0x66, 0xFC, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'C' | 'c' => &[0x3C, 0x66, 0xC0, 0xC0, 0xC0, 0x66, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'D' | 'd' => &[0xF8, 0x6C, 0x66, 0x66, 0x66, 0x6C, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'E' | 'e' => &[0xFE, 0x62, 0x68, 0x78, 0x68, 0x62, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'F' | 'f' => &[0xFE, 0x62, 0x68, 0x78, 0x68, 0x60, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'G' | 'g' => &[0x3C, 0x66, 0xC0, 0xCE, 0xC6, 0x66, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'H' | 'h' => &[0xC6, 0xC6, 0xC6, 0xFE, 0xC6, 0xC6, 0xC6, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'I' | 'i' => &[0x3C, 0x18, 0x18, 0x18, 0x18, 0x18, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'J' | 'j' => &[0x1E, 0x0C, 0x0C, 0x0C, 0xCC, 0xCC, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'K' | 'k' => &[0xE6, 0x66, 0x6C, 0x78, 0x6C, 0x66, 0xE6, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'L' | 'l' => &[0xF0, 0x60, 0x60, 0x60, 0x62, 0x66, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'M' | 'm' => &[0xC6, 0xEE, 0xFE, 0xFE, 0xD6, 0xC6, 0xC6, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'N' | 'n' => &[0xC6, 0xE6, 0xF6, 0xDE, 0xCE, 0xC6, 0xC6, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'O' | 'o' => &[0x38, 0x6C, 0xC6, 0xC6, 0xC6, 0x6C, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'P' | 'p' => &[0xFC, 0x66, 0x66, 0x7C, 0x60, 0x60, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'Q' | 'q' => &[0x38, 0x6C, 0xC6, 0xC6, 0xD6, 0x6C, 0x3C, 0x06, 0x00, 0x00, 0x00, 0x00],
+        'R' | 'r' => &[0xFC, 0x66, 0x66, 0x7C, 0x6C, 0x66, 0xE6, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'S' | 's' => &[0x7C, 0xC6, 0x60, 0x38, 0x0C, 0xC6, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'T' | 't' => &[0xFE, 0xBA, 0x38, 0x38, 0x38, 0x38, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'U' | 'u' => &[0xC6, 0xC6, 0xC6, 0xC6, 0xC6, 0xC6, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'V' | 'v' => &[0xC6, 0xC6, 0xC6, 0xC6, 0x6C, 0x38, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'W' | 'w' => &[0xC6, 0xC6, 0xD6, 0xFE, 0xFE, 0xEE, 0xC6, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'X' | 'x' => &[0xC6, 0x6C, 0x38, 0x38, 0x6C, 0xC6, 0xC6, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'Y' | 'y' => &[0x66, 0x66, 0x66, 0x3C, 0x18, 0x18, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        'Z' | 'z' => &[0xFE, 0xC6, 0x0C, 0x18, 0x30, 0x63, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '0' => &[0x38, 0x6C, 0xC6, 0xD6, 0xE6, 0x6C, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '1' => &[0x18, 0x38, 0x18, 0x18, 0x18, 0x18, 0x7E, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '2' => &[0x7C, 0xC6, 0x06, 0x1C, 0x30, 0x60, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '3' => &[0x7C, 0xC6, 0x06, 0x3C, 0x06, 0xC6, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '4' => &[0x0C, 0x1C, 0x3C, 0x6C, 0xCC, 0xFE, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '5' => &[0xFE, 0xC0, 0xF8, 0x0C, 0x06, 0xC6, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '6' => &[0x38, 0x60, 0xC0, 0xFC, 0xC6, 0xC6, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '7' => &[0xFE, 0xC6, 0x0C, 0x18, 0x30, 0x30, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '8' => &[0x7C, 0xC6, 0xC6, 0x7C, 0xC6, 0xC6, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '9' => &[0x7C, 0xC6, 0xC6, 0x7E, 0x06, 0x0C, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '!' => &[0x18, 0x18, 0x18, 0x18, 0x00, 0x18, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '?' => &[0x7C, 0xC6, 0x0C, 0x18, 0x18, 0x00, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '.' => &[0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00],
+        ',' => &[0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x18, 0x10, 0x20, 0x00, 0x00, 0x00],
+        ':' => &[0x00, 0x18, 0x18, 0x00, 0x18, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '-' => &[0x00, 0x00, 0x00, 0x7E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '+' => &[0x00, 0x18, 0x18, 0x7E, 0x18, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+        '(' => &[0x0C, 0x18, 0x30, 0x30, 0x30, 0x18, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00],
+        ')' => &[0x30, 0x18, 0x0C, 0x0C, 0x0C, 0x18, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00],
+        _ => &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+    }
+}

@@ -10,5 +10,6 @@ quick-core = { path = "../quick-core" }
 quick-render = { path = "../quick-render" }
 winit = { workspace = true }
 raw-window-handle = { workspace = true }
+softbuffer = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }

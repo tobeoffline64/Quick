@@ -8,6 +8,7 @@ use quick_render::canvas::Canvas;
 use quick_render::damage::DamageTracker;
 use quick_style::rule::StyleSheet;
 use quick_widgets::widget::Widget;
+use quick_window::runner::{AppController, WindowRunner};
 use quick_window::window::WindowOptions;
 use std::path::Path;
 
@@ -118,6 +119,23 @@ impl App {
             false
         }
     }
+
+    /// Launch the interactive Wayland/X11 desktop window and run the UI event loop.
+    pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
+        let options = self.window_options.clone();
+        let runner = WindowRunner::new(options, self);
+        runner.run()
+    }
+}
+
+impl AppController for App {
+    fn render_frame(&mut self, size: Size) -> &Canvas {
+        self.render_frame(size)
+    }
+
+    fn handle_event(&mut self, event: &quick_core::event::Event, size: Size) -> bool {
+        self.handle_event(event, size)
+    }
 }
 
 #[cfg(test)]
@@ -138,7 +156,6 @@ mod tests {
             .unwrap();
 
         let canvas = app.render_frame(Size::new(400.0, 300.0));
-        // Verify root background + text + button background + button text are rendered
         assert!(canvas.commands().len() >= 4);
     }
 
@@ -175,7 +192,7 @@ mod tests {
         assert!(canvas_1.commands().len() >= 4);
         assert_eq!(greeting.get(), "Clicks: 0");
 
-        // Click on the button (centered at x=200, y=55)
+        // Click on the button
         let down = quick_core::event::Event::Pointer(PointerEvent {
             position: Point::new(200.0, 55.0),
             button: Some(PointerButton::Primary),

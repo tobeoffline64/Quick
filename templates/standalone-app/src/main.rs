@@ -5,7 +5,7 @@ use quick::prelude::*;
 static GLOBAL: quick::core::MiMalloc = quick::core::MiMalloc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("⚡ Starting Standalone Quick Native Application...");
+    println!("⚡ Starting Standalone Quick Native Application on Wayland/X11...");
 
     // 1. Reactive State Signals
     let click_count = Signal::new(0);
@@ -32,8 +32,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 2. Bind signals and actions to DataContext
     let mut data_ctx = DataContext::new();
-    data_ctx.bind_signal("greeting", greeting.clone());
-    data_ctx.bind_signal("description", description.clone());
+    data_ctx.bind_signal("greeting", greeting);
+    data_ctx.bind_signal("description", description);
 
     let count_inc = click_count.clone();
     data_ctx.bind_action("on_click", move || {
@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Load UI from app.quick
     let quick_content = include_str!("../app.quick");
-    let mut app = App::new(
+    let app = App::new(
         WindowOptions::new()
             .title("Standalone Quick Application")
             .size(680.0, 520.0),
@@ -57,11 +57,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     .from_quick(quick_content, &mut data_ctx)
     .map_err(|e| format!("Failed to parse app.quick: {}", e))?;
 
-    println!("✅ Loaded app.quick successfully!");
-
-    // 4. Render initial frame
-    let canvas = app.render_frame(Size::new(680.0, 520.0));
-    println!("🎨 Rendered frame with {} draw commands.", canvas.commands().len());
+    println!("🚀 Opening desktop window...");
+    // 4. Launch interactive desktop window & event loop
+    app.run()?;
 
     Ok(())
 }

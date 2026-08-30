@@ -5,7 +5,7 @@ use quick::prelude::*;
 static GLOBAL: quick::core::MiMalloc = quick::core::MiMalloc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("⚡ Starting Quick 'Hello World' Project Application...");
+    println!("⚡ Starting Quick Hello World Application on Wayland/X11...");
 
     // 1. Reactive state signals
     let click_count = Signal::new(0);
@@ -24,54 +24,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let description = create_computed(move || {
         let n = count_desc.get();
         if n == 0 {
-            "Edit app.quick or src/main.rs to build fast, beautiful native desktop UIs.".to_string()
+            "Click the button below to trigger reactive UI updates in real-time.".to_string()
         } else {
-            format!("Rendering with Skia 2D in frame bump arena • {} state mutations processed", n)
+            format!("Rendering with Skia 2D in frame bump arena • {} state mutations", n)
         }
     });
 
-    // 2. Bind reactive signals and action callbacks
+    // 2. Bind reactive signals and actions to DataContext
     let mut data_ctx = DataContext::new();
-    data_ctx.bind_signal("greeting", greeting.clone());
-    data_ctx.bind_signal("description", description.clone());
+    data_ctx.bind_signal("greeting", greeting);
+    data_ctx.bind_signal("description", description);
 
     let count_inc = click_count.clone();
     data_ctx.bind_action("on_click", move || {
         count_inc.update(|v| *v += 1);
-        println!("👉 Interaction recorded! Clicks: {}", count_inc.get());
+        println!("👉 Button Clicked! Count: {}", count_inc.get());
     });
 
     let count_reset = click_count.clone();
     data_ctx.bind_action("on_reset", move || {
         count_reset.set(0);
-        println!("🔄 State reset to initial values.");
+        println!("🔄 State Reset!");
     });
 
-    // 3. Load UI from app.quick declarative file
+    // 3. Load UI from app.quick
     let quick_content = include_str!("../app.quick");
-    let mut app = App::new(
+    let app = App::new(
         WindowOptions::new()
-            .title("Hello World - Quick Native Project")
+            .title("Hello World - Quick Native UI")
             .size(680.0, 520.0),
     )
     .from_quick(quick_content, &mut data_ctx)
     .map_err(|e| format!("Failed to parse app.quick: {}", e))?;
 
-    println!("✅ Successfully loaded UI from 'app.quick'!");
-    println!("💬 Initial Greeting: '{}'", greeting.get());
+    println!("🚀 Opening desktop window...");
+    // 4. Launch interactive desktop window & event loop
+    app.run()?;
 
-    // 4. Initial Frame Render (Layout + Skia 2D Canvas Display List in Arena)
-    let canvas = app.render_frame(Size::new(680.0, 520.0));
-    println!("🎨 Initial frame rendered ({} draw commands in display list).", canvas.commands().len());
-
-    // 5. Simulate interaction
-    println!("\n🔄 Simulating click event on '✨ Click Me!' button...");
-    click_count.update(|v| *v += 1);
-    println!("💬 Updated Greeting: '{}'", greeting.get());
-
-    let canvas_updated = app.render_frame(Size::new(680.0, 520.0));
-    println!("🎨 Re-rendered frame in arena ({} draw commands).", canvas_updated.commands().len());
-
-    println!("\n✨ Hello World project initialized and ready for development!");
     Ok(())
 }

@@ -5,7 +5,7 @@ use quick::prelude::*;
 static GLOBAL: quick::core::MiMalloc = quick::core::MiMalloc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("⚡ Starting Quick 'Hello World' Application...");
+    println!("⚡ Starting Quick 'Hello World' Application on Wayland/X11...");
 
     // 1. Reactive state signals
     let click_count = Signal::new(0);
@@ -32,8 +32,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 2. Bind reactive signals & actions to DataContext
     let mut data_ctx = DataContext::new();
-    data_ctx.bind_signal("greeting", greeting.clone());
-    data_ctx.bind_signal("subtext", subtext.clone());
+    data_ctx.bind_signal("greeting", greeting);
+    data_ctx.bind_signal("subtext", subtext);
 
     let inc_count = click_count.clone();
     data_ctx.bind_action("greet", move || {
@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Load UI from the `.quick` declarative file
     let quick_content = include_str!("../app.quick");
-    let mut app = App::new(
+    let app = App::new(
         WindowOptions::new()
             .title("Hello World - Quick Framework (.quick format)")
             .size(640.0, 480.0),
@@ -57,21 +57,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     .from_quick(quick_content, &mut data_ctx)
     .map_err(|e| format!("Failed to parse .quick file: {}", e))?;
 
-    println!("✅ Successfully loaded UI from 'app.quick'!");
-    println!("💬 Initial Greeting: '{}'", greeting.get());
+    println!("🚀 Opening desktop window...");
+    // 4. Launch interactive desktop window & event loop
+    app.run()?;
 
-    // 4. Initial Frame Render (Layout + Skia 2D Display List in Arena)
-    let canvas = app.render_frame(Size::new(640.0, 480.0));
-    println!("🎨 Frame rendered successfully ({} draw commands in display list).", canvas.commands().len());
-
-    // 5. Test reactive interaction
-    println!("\n🔄 Simulating user click on '✨ Click Me!' button...");
-    click_count.update(|v| *v += 1);
-    println!("💬 Updated Greeting: '{}'", greeting.get());
-
-    let updated_canvas = app.render_frame(Size::new(640.0, 480.0));
-    println!("🎨 Re-rendered frame successfully ({} commands).", updated_canvas.commands().len());
-
-    println!("\n✨ Quick 'Hello World' application running and verified!");
     Ok(())
 }
