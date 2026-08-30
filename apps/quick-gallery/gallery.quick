@@ -1,0 +1,154 @@
+<!-- Quick Component Gallery — Two-column layout: Base (Fluent) | Material You -->
+<App title="Quick Component Gallery" width="1200" height="900">
+  <VStack style="padding: 0px; gap: 0px; background: #FAFAFA;">
+
+    <!-- Header bar -->
+    <HStack style="padding: 16px 24px; background: #FFFFFF; border-bottom: 1px #E0E0E0; gap: 16px;">
+      <Text text="⚡ Quick Component Gallery" style="font-size: 22px; color: #212121;" />
+      <Text text="v0.2 — Base (Fluent) ↔ Material You" style="font-size: 14px; color: #757575;" />
+    </HStack>
+
+    <!-- Column headers -->
+    <HStack style="padding: 8px 24px; background: #F5F5F5; border-bottom: 1px #E0E0E0;">
+      <Container style="width: 50%; padding: 4px 8px;">
+        <Text text="Base Theme (Avalonia Fluent, OS Adaptive)" style="font-size: 13px; color: #424242;" />
+      </Container>
+      <Container style="width: 50%; padding: 4px 8px;">
+        <Text text="Material You (Dynamic Color, M3)" style="font-size: 13px; color: #424242;" />
+      </Container>
+    </HStack>
+
+    <!-- SECTION: Buttons -->
+    <HStack style="padding: 20px 24px; gap: 24px; border-bottom: 1px #EEEEEE;">
+      <VStack style="width: 50%; gap: 12px;">
+        <Text text="Buttons" style="font-size: 11px; color: #9E9E9E;" />
+        <HStack style="gap: 8px;">
+          <Button text="Primary" variant="filled" />
+          <Button text="Secondary" variant="tonal" />
+          <Button text="Elevated" variant="elevated" />
+        </HStack>
+        <HStack style="gap: 8px;">
+          <Button text="Outlined" variant="outlined" />
+          <Button text="Text" variant="text" />
+        </HStack>
+      </VStack>
+      <VStack style="width: 50%; gap: 12px;" theme="material-you">
+        <Text text="Buttons" style="font-size: 11px; color: #9E9E9E;" />
+        <HStack style="gap: 8px;">
+          <Button text="Primary" variant="filled" />
+          <Button text="Tonal" variant="tonal" />
+          <Button text="Elevated" variant="elevated" />
+        </HStack>
+        <HStack style="gap: 8px;">
+          <Button text="Outlined" variant="outlined" />
+          <Button text="Text" variant="text" />
+        </HStack>
+      </VStack>
+    </HStack>
+
+    <!-- SECTION: Cards -->
+    <HStack style="padding: 20px 24px; gap: 24px; border-bottom: 1px #EEEEEE;">
+      <VStack style="width: 50%; gap: 12px;">
+        <Text text="Cards" style="font-size: 11px; color: #9E9E9E;" />
+        <HStack style="gap: 12px;">
+          <Card variant="elevated">
+            <Text text="Elevated Card" style="font-size: 14px;" />
+            <Text text="Subtle border, flat default" style="font-size: 11px; color: #757575;" />
+          </Card>
+          <Card variant="filled">
+            <Text text="Filled Card" style="font-size: 14px;" />
+          </Card>
+          <Card variant="outlined">
+            <Text text="Outlined Card" style="font-size: 14px;" />
+          </Card>
+        </HStack>
+      </VStack>
+      <VStack style="width: 50%; gap: 12px;" theme="material-you">
+        <Text text="Cards" style="font-size: 11px; color: #9E9E9E;" />
+        <HStack style="gap: 12px;">
+          <Card variant="elevated">
+            <Text text="Elevated Card" style="font-size: 14px;" />
+            <Text text="M3 surface tint" style="font-size: 11px;" />
+          </Card>
+          <Card variant="filled">
+            <Text text="Filled Card" style="font-size: 14px;" />
+          </Card>
+          <Card variant="outlined">
+            <Text text="Outlined Card" style="font-size: 14px;" />
+          </Card>
+        </HStack>
+      </VStack>
+    </HStack>
+
+    <!-- SECTION: Selection Controls -->
+    <HStack style="padding: 20px 24px; gap: 24px; border-bottom: 1px #EEEEEE;">
+      <VStack style="width: 50%; gap: 12px;">
+        <Text text="Selection" style="font-size: 11px; color: #9E9E9E;" />
+        <HStack style="gap: 24px; align-items: center;">
+          <Switch checked="$sw_base" onchange="on_switch_base" />
+          <Checkbox checked="$cb_base" onchange="on_check_base" />
+          <Chip text="WiFi" selected="$chip1" onclick="on_chip1" />
+          <Chip text="Bluetooth" selected="$chip2" onclick="on_chip2" />
+        </HStack>
+      </VStack>
+      <VStack style="width: 50%; gap: 12px;" theme="material-you">
+        <Text text="Selection" style="font-size: 11px; color: #9E9E9E;" />
+        <HStack style="gap: 24px; align-items: center;">
+          <Switch checked="$sw_m3" onchange="on_switch_m3" />
+          <Checkbox checked="$cb_m3" onchange="on_check_m3" />
+          <Chip text="WiFi" selected="$chip3" onclick="on_chip3" />
+          <Chip text="Bluetooth" selected="$chip4" onclick="on_chip4" />
+        </HStack>
+      </VStack>
+    </HStack>
+
+    <!-- SECTION: Inputs -->
+    <HStack style="padding: 20px 24px; gap: 24px; border-bottom: 1px #EEEEEE;">
+      <VStack style="width: 50%; gap: 12px;">
+        <Text text="Inputs" style="font-size: 11px; color: #9E9E9E;" />
+        <TextInput placeholder="Type something…" value="$input_base" />
+        <Slider min="0" max="100" value="$slider_base" />
+      </VStack>
+      <VStack style="width: 50%; gap: 12px;" theme="material-you">
+        <Text text="Inputs" style="font-size: 11px; color: #9E9E9E;" />
+        <TextInput placeholder="Type something…" value="$input_m3" />
+        <Slider min="0" max="100" value="$slider_m3" />
+      </VStack>
+    </HStack>
+
+    <!-- SECTION: Progress -->
+    <HStack style="padding: 20px 24px; gap: 24px; border-bottom: 1px #EEEEEE;">
+      <VStack style="width: 50%; gap: 12px;">
+        <Text text="Progress" style="font-size: 11px; color: #9E9E9E;" />
+        <ProgressBar progress="$progress_base" min="0" max="1" />
+        <Text text="65% loaded" style="font-size: 11px; color: #757575;" />
+      </VStack>
+      <VStack style="width: 50%; gap: 12px;" theme="material-you">
+        <Text text="Progress" style="font-size: 11px; color: #9E9E9E;" />
+        <ProgressBar progress="$progress_m3" min="0" max="1" />
+        <Text text="65% loaded" style="font-size: 11px; color: #757575;" />
+      </VStack>
+    </HStack>
+
+    <!-- SECTION: Typography -->
+    <HStack style="padding: 20px 24px; gap: 24px; border-bottom: 1px #EEEEEE;">
+      <VStack style="width: 50%; gap: 8px;">
+        <Text text="Typography" style="font-size: 11px; color: #9E9E9E;" />
+        <Text text="Caption — 11px" style="font-size: 11px; color: #757575;" />
+        <Text text="Body — 14px" style="font-size: 14px; color: #212121;" />
+        <Text text="Body Large — 16px" style="font-size: 16px; color: #212121;" />
+        <Text text="Title — 18px" style="font-size: 18px; color: #212121;" />
+        <Text text="Display — 28px" style="font-size: 28px; color: #212121;" />
+      </VStack>
+      <VStack style="width: 50%; gap: 8px;" theme="material-you">
+        <Text text="Typography" style="font-size: 11px; color: #9E9E9E;" />
+        <Text text="Caption — 11px" style="font-size: 11px;" />
+        <Text text="Body — 14px" style="font-size: 14px;" />
+        <Text text="Body Large — 16px" style="font-size: 16px;" />
+        <Text text="Title — 18px" style="font-size: 18px;" />
+        <Text text="Display — 28px" style="font-size: 28px;" />
+      </VStack>
+    </HStack>
+
+  </VStack>
+</App>

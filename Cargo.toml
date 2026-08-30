@@ -10,6 +10,7 @@ members = [
     "crates/quick-markup",
     "crates/quick",
     "apps/hello-world",
+    "apps/quick-gallery",
     "examples/hello_world",
     "examples/quick_counter",
     "examples/device_showcase",

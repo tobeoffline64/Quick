@@ -4,6 +4,7 @@ use quick_core::event::Event;
 use quick_core::geometry::{BorderRadius, Color, Insets, Point, Rect};
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
+use quick_style::base::{base_theme, RadiusScale, SpacingScale};
 use quick_style::property::{FlexDirection, Style};
 use quick_style::theme::tokens::ElevationTokens;
 use serde::{Deserialize, Serialize};
@@ -26,24 +27,27 @@ pub struct Card {
 
 impl Card {
     pub fn new(variant: CardVariant) -> Self {
+        let bt = base_theme();
         let mut container = Container::new();
         container.style.flex_direction = Some(FlexDirection::Column);
-        container.style.border_radius = Some(BorderRadius::all(16.0));
-        container.style.padding = Some(Insets::all(24.0));
-        container.style.gap = Some(16.0);
+        container.style.border_radius = Some(BorderRadius::all(RadiusScale::MD));
+        container.style.padding = Some(Insets::all(SpacingScale::XXL));
+        container.style.gap = Some(SpacingScale::LG);
 
         let elevation = match variant {
             CardVariant::Elevated => {
-                container.style.background_color = Some(Color::from_hex("#1D1B20").unwrap_or(Color::from_hex("#1E1F2B").unwrap()));
+                container.style.background_color = Some(bt.colors.surface);
+                container.style.border_color = Some(bt.colors.border);
+                container.style.border_width = Some(1.0);
                 1
             }
             CardVariant::Filled => {
-                container.style.background_color = Some(Color::from_hex("#2B2930").unwrap_or(Color::from_hex("#252736").unwrap()));
+                container.style.background_color = Some(bt.colors.surface_raised);
                 0
             }
             CardVariant::Outlined => {
-                container.style.background_color = Some(Color::from_hex("#141218").unwrap_or(Color::from_hex("#161B22").unwrap()));
-                container.style.border_color = Some(Color::from_hex("#49454F").unwrap_or(Color::from_hex("#30363D").unwrap()));
+                container.style.background_color = Some(bt.colors.bg);
+                container.style.border_color = Some(bt.colors.border);
                 container.style.border_width = Some(1.0);
                 0
             }

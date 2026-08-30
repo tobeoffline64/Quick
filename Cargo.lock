@@ -1407,6 +1407,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-gallery"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "log",
+ "quick",
+ "quick-core",
+ "quick-markup",
+ "quick-style",
+ "quick-widgets",
+ "quick-window",
+]
+
+[[package]]
 name = "quick-layout"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,21 @@
+[package]
+name = "quick-gallery"
+version = "0.1.0"
+edition = "2021"
+authors = ["Quick Framework Team"]
+license = "MIT OR Apache-2.0"
+description = "Component gallery for the Quick UI framework — shows all widgets in Base (Fluent) and Material You themes"
+
+[features]
+default = ["mimalloc"]
+mimalloc = ["quick/mimalloc"]
+
+[dependencies]
+quick        = { path = "../../crates/quick" }
+quick-core   = { path = "../../crates/quick-core" }
+quick-markup = { path = "../../crates/quick-markup" }
+quick-style  = { path = "../../crates/quick-style" }
+quick-widgets = { path = "../../crates/quick-widgets" }
+quick-window = { path = "../../crates/quick-window" }
+log          = "0.4"
+env_logger   = "0.11"

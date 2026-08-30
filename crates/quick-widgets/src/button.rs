@@ -4,6 +4,7 @@ use quick_core::event::{Event, PointerButton, PointerEvent, PointerPhase};
 use quick_core::geometry::{BorderRadius, Color, Insets, Point, Rect};
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
+use quick_style::base::{base_theme, RadiusScale, SpacingScale, TypeScale};
 use quick_style::property::{Dimension, Style};
 use quick_style::theme::tokens::{ElevationTokens, StateLayerTokens};
 use serde::{Deserialize, Serialize};
@@ -36,12 +37,13 @@ pub struct Button {
 
 impl Button {
     pub fn new(text: impl Into<String>) -> Self {
+        let bt = base_theme();
         let mut style = Style::default();
-        style.background_color = Some(Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
-        style.text_color = Some(Color::WHITE);
-        style.border_radius = Some(BorderRadius::all(999.0));
-        style.padding = Some(Insets::symmetric(10.0, 24.0));
-        style.font_size = Some(14.0);
+        style.background_color = Some(bt.colors.accent.normal);
+        style.text_color = Some(bt.colors.accent.on_accent);
+        style.border_radius = Some(BorderRadius::all(RadiusScale::PILL));
+        style.padding = Some(Insets::symmetric(SpacingScale::SM, SpacingScale::XL));
+        style.font_size = Some(TypeScale::BUTTON);
 
         Self {
             id: None,
@@ -60,41 +62,50 @@ impl Button {
 
     pub fn with_variant(mut self, variant: ButtonVariant) -> Self {
         self.variant = variant;
+        let bt = base_theme();
+        let pad = Insets::symmetric(SpacingScale::SM, SpacingScale::XL);
         match variant {
             ButtonVariant::Filled => {
-                self.style.background_color = Some(Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
-                self.style.text_color = Some(Color::WHITE);
+                self.style.background_color = Some(bt.colors.accent.normal);
+                self.style.text_color = Some(bt.colors.accent.on_accent);
                 self.style.border_color = None;
                 self.style.border_width = None;
-                self.style.padding = Some(Insets::symmetric(10.0, 24.0));
+                self.style.padding = Some(pad);
             }
             ButtonVariant::Tonal => {
-                self.style.background_color = Some(Color::from_hex("#E8DEF8").unwrap_or(Color::from_rgb(232, 222, 248)));
-                self.style.text_color = Some(Color::from_hex("#1D192B").unwrap_or(Color::from_rgb(29, 25, 43)));
+                // Tonal: muted accent bg, dark text
+                let acc = bt.colors.accent.normal;
+                let tonal_bg = Color::from_rgb(
+                    ((acc.r as u16 * 3 + 255) / 4) as u8,
+                    ((acc.g as u16 * 3 + 255) / 4) as u8,
+                    ((acc.b as u16 * 3 + 255) / 4) as u8,
+                );
+                self.style.background_color = Some(tonal_bg);
+                self.style.text_color = Some(bt.colors.text_primary);
                 self.style.border_color = None;
                 self.style.border_width = None;
-                self.style.padding = Some(Insets::symmetric(10.0, 24.0));
+                self.style.padding = Some(pad);
             }
             ButtonVariant::Elevated => {
-                self.style.background_color = Some(Color::from_hex("#F7F2FA").unwrap_or(Color::from_rgb(247, 242, 250)));
-                self.style.text_color = Some(Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
+                self.style.background_color = Some(bt.colors.surface_raised);
+                self.style.text_color = Some(bt.colors.accent.normal);
                 self.style.border_color = None;
                 self.style.border_width = None;
-                self.style.padding = Some(Insets::symmetric(10.0, 24.0));
+                self.style.padding = Some(pad);
             }
             ButtonVariant::Outlined => {
                 self.style.background_color = Some(Color::TRANSPARENT);
-                self.style.text_color = Some(Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
-                self.style.border_color = Some(Color::from_hex("#79747E").unwrap_or(Color::from_rgb(121, 116, 126)));
+                self.style.text_color = Some(bt.colors.accent.normal);
+                self.style.border_color = Some(bt.colors.border);
                 self.style.border_width = Some(1.0);
-                self.style.padding = Some(Insets::symmetric(10.0, 24.0));
+                self.style.padding = Some(pad);
             }
             ButtonVariant::Text => {
                 self.style.background_color = Some(Color::TRANSPARENT);
-                self.style.text_color = Some(Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
+                self.style.text_color = Some(bt.colors.accent.normal);
                 self.style.border_color = None;
                 self.style.border_width = None;
-                self.style.padding = Some(Insets::symmetric(10.0, 16.0));
+                self.style.padding = Some(Insets::symmetric(SpacingScale::SM, SpacingScale::LG));
             }
         }
         self
@@ -160,34 +171,38 @@ impl Widget for Button {
     }
 
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
+        let bt = base_theme();
+        let acc = &bt.colors.accent;
         let (default_bg, default_fg, default_border, default_border_w) = match self.variant {
             ButtonVariant::Filled => (
-                Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)),
-                Color::WHITE,
+                acc.normal,
+                acc.on_accent,
                 None,
                 None,
             ),
-            ButtonVariant::Tonal => (
-                Color::from_hex("#E8DEF8").unwrap_or(Color::from_rgb(232, 222, 248)),
-                Color::from_hex("#1D192B").unwrap_or(Color::from_rgb(29, 25, 43)),
-                None,
-                None,
-            ),
+            ButtonVariant::Tonal => {
+                let tonal_bg = Color::from_rgb(
+                    ((acc.normal.r as u16 * 3 + 255) / 4) as u8,
+                    ((acc.normal.g as u16 * 3 + 255) / 4) as u8,
+                    ((acc.normal.b as u16 * 3 + 255) / 4) as u8,
+                );
+                (tonal_bg, bt.colors.text_primary, None, None)
+            }
             ButtonVariant::Elevated => (
-                Color::from_hex("#F7F2FA").unwrap_or(Color::from_rgb(247, 242, 250)),
-                Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)),
+                bt.colors.surface_raised,
+                acc.normal,
                 None,
                 None,
             ),
             ButtonVariant::Outlined => (
                 Color::TRANSPARENT,
-                Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)),
-                Some(Color::from_hex("#79747E").unwrap_or(Color::from_rgb(121, 116, 126))),
-                Some(1.0),
+                acc.normal,
+                Some(bt.colors.border),
+                Some(1.0f32),
             ),
             ButtonVariant::Text => (
                 Color::TRANSPARENT,
-                Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)),
+                acc.normal,
                 None,
                 None,
             ),
