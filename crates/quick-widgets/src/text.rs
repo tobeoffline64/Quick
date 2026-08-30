@@ -24,7 +24,7 @@ impl Text {
     pub fn new(text: impl Into<String>) -> Self {
         let mut style = Style::default();
         style.text_color = Some(Color::WHITE);
-        style.font_size = Some(14.0);
+        style.font_size = Some(quick_style::base::TypeScale::BODY);
 
         Self {
             id: None,
@@ -37,7 +37,7 @@ impl Text {
     pub fn dynamic(signal: Signal<String>) -> Self {
         let mut style = Style::default();
         style.text_color = Some(Color::WHITE);
-        style.font_size = Some(14.0);
+        style.font_size = Some(quick_style::base::TypeScale::BODY);
 
         Self {
             id: None,
@@ -82,7 +82,7 @@ impl Widget for Text {
 
     fn build_layout(&mut self, engine: &mut LayoutEngine) -> Result<NodeId, TaffyError> {
         let content = self.text();
-        let font_size = self.style.font_size.unwrap_or(14.0);
+        let font_size = self.style.font_size.unwrap_or(quick_style::base::TypeScale::BODY);
         let char_count = content.chars().count() as f32;
         let pad_h = self.style.padding.map(|p| p.left + p.right).unwrap_or(0.0);
         let pad_v = self.style.padding.map(|p| p.top + p.bottom).unwrap_or(0.0);
@@ -121,7 +121,7 @@ impl Widget for Text {
 
         let bt = base_theme();
         let color = self.style.text_color.unwrap_or(bt.colors.text_primary);
-        let font_size = self.style.font_size.unwrap_or(14.0);
+        let font_size = self.style.font_size.unwrap_or(quick_style::base::TypeScale::BODY);
         let pad_left = self.style.padding.map(|p| p.left).unwrap_or(0.0);
         let pad_right = self.style.padding.map(|p| p.right).unwrap_or(0.0);
         let pad_top = self.style.padding.map(|p| p.top).unwrap_or(0.0);

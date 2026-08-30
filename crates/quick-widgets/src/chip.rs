@@ -95,7 +95,7 @@ impl Widget for Chip {
     }
 
     fn build_layout(&mut self, engine: &mut LayoutEngine) -> Result<NodeId, TaffyError> {
-        let font_size = self.style.font_size.unwrap_or(13.0);
+        let font_size = self.style.font_size.unwrap_or(quick_style::base::TypeScale::CHIP);
         let char_count = self.text.chars().count() as f32;
         let pad_h = self.style.padding.map(|p| p.left + p.right).unwrap_or(28.0);
         let pad_v = self.style.padding.map(|p| p.top + p.bottom).unwrap_or(12.0);
@@ -141,7 +141,7 @@ impl Widget for Chip {
             self.style.text_color.unwrap_or_else(|| Color::from_hex("#CAC4D0").unwrap_or(Color::from_rgb(202, 196, 208)))
         };
 
-        let font_size = self.style.font_size.unwrap_or(13.0);
+        let font_size = self.style.font_size.unwrap_or(quick_style::base::TypeScale::CHIP);
         let char_count = self.text.chars().count() as f32;
         let text_w = char_count * font_size * 0.60;
         let origin_x = bounds.origin.x + ((bounds.size.width - text_w) / 2.0).max(0.0);

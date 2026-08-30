@@ -149,7 +149,7 @@ impl Widget for Button {
     }
 
     fn build_layout(&mut self, engine: &mut LayoutEngine) -> Result<NodeId, TaffyError> {
-        let font_size = self.style.font_size.unwrap_or(14.0);
+        let font_size = self.style.font_size.unwrap_or(quick_style::base::TypeScale::BUTTON);
         let char_count = self.text.chars().count() as f32;
         let pad_h = self.style.padding.map(|p| p.left + p.right).unwrap_or_else(|| {
             if self.variant == ButtonVariant::Text { 32.0 } else { 48.0 }
@@ -258,7 +258,7 @@ impl Widget for Button {
         }
 
         // 5. Paint Text Label & Icon
-        let font_size = self.style.font_size.unwrap_or(14.0);
+        let font_size = self.style.font_size.unwrap_or(quick_style::base::TypeScale::BUTTON);
         let char_count = self.text.chars().count() as f32;
         let text_w = char_count * font_size * 0.55;
         let origin_x = bounds.origin.x + ((bounds.size.width - text_w) / 2.0).max(0.0);

@@ -3,20 +3,25 @@
 pub struct TypeScale;
 
 impl TypeScale {
-    pub const CAPTION:      f32 = 11.0; // metadata, timestamps
-    pub const BODY:         f32 = 14.0; // default body text
-    pub const BODY_LARGE:   f32 = 16.0; // prominent body / list items
-    pub const TITLE:        f32 = 18.0; // section headers
-    pub const TITLE_LARGE:  f32 = 22.0; // dialog titles
-    pub const DISPLAY:      f32 = 28.0; // page headlines
-    pub const DISPLAY_LARGE:f32 = 34.0; // hero text
+    pub const CAPTION:      f32 = 10.0; // metadata, timestamps
+    pub const BODY:         f32 = 12.0; // standard body text (standard 12px)
+    pub const BODY_LARGE:   f32 = 14.0; // prominent body / list items
+    pub const TITLE:        f32 = 16.0; // section headers
+    pub const TITLE_LARGE:  f32 = 18.0; // dialog titles
+    pub const DISPLAY:      f32 = 22.0; // page headlines
+    pub const DISPLAY_LARGE:f32 = 26.0; // hero text
 
     /// Default button label size
     pub const BUTTON: f32  = Self::BODY;
     /// Default input placeholder/value size
     pub const INPUT:  f32  = Self::BODY;
     /// Default chip label size
-    pub const CHIP:   f32  = 13.0;
+    pub const CHIP:   f32  = 11.0;
+
+    /// Reactive scale helper for dynamically adjusting typography with UI zoom / scaling.
+    pub fn scale(base_size: f32, scale_factor: f32) -> f32 {
+        (base_size * scale_factor).max(6.0)
+    }
 }
 
 /// Named font weight constants (CSS numeric weight values).
@@ -195,5 +200,14 @@ mod tests {
         std::env::remove_var("QUICK_FONT_FAMILY");
         assert_eq!(stack.primary, "Roboto");
         assert_eq!(stack.families.len(), 2);
+    }
+
+    #[test]
+    fn test_typescale_reactive_scaling() {
+        assert_eq!(TypeScale::BODY, 12.0);
+        let scaled_1_5 = TypeScale::scale(TypeScale::BODY, 1.5);
+        assert_eq!(scaled_1_5, 18.0);
+        let scaled_2_0 = TypeScale::scale(TypeScale::BODY, 2.0);
+        assert_eq!(scaled_2_0, 24.0);
     }
 }

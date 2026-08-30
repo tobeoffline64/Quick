@@ -91,10 +91,24 @@ impl App {
         self.canvas.clear(bt.colors.bg);
 
         if let Some(ref mut root) = self.root {
+            // Ensure root container expands to fill full window if unspecified
+            if root.style().width.is_none() {
+                root.style_mut().width = Some(quick_style::property::Dimension::Percent(100.0));
+            }
+            if root.style().height.is_none() {
+                root.style_mut().height = Some(quick_style::property::Dimension::Percent(100.0));
+            }
+
             self.layout_engine.reset();
             if let Ok(root_node) = root.build_layout(&mut self.layout_engine) {
                 let _ = self.layout_engine.compute_layout(root_node, window_size);
-                if let Ok(bounds) = self.layout_engine.get_layout(root_node) {
+                if let Ok(mut bounds) = self.layout_engine.get_layout(root_node) {
+                    if bounds.size.width < window_size.width {
+                        bounds.size.width = window_size.width;
+                    }
+                    if bounds.size.height < window_size.height {
+                        bounds.size.height = window_size.height;
+                    }
                     root.update_layout(&self.layout_engine, bounds.origin);
                     root.paint(&mut self.canvas, bounds);
                 }
@@ -106,10 +120,23 @@ impl App {
 
     pub fn handle_event(&mut self, event: &quick_core::event::Event, window_size: Size) -> bool {
         if let Some(ref mut root) = self.root {
+            if root.style().width.is_none() {
+                root.style_mut().width = Some(quick_style::property::Dimension::Percent(100.0));
+            }
+            if root.style().height.is_none() {
+                root.style_mut().height = Some(quick_style::property::Dimension::Percent(100.0));
+            }
+
             self.layout_engine.reset();
             if let Ok(root_node) = root.build_layout(&mut self.layout_engine) {
                 let _ = self.layout_engine.compute_layout(root_node, window_size);
-                if let Ok(bounds) = self.layout_engine.get_layout(root_node) {
+                if let Ok(mut bounds) = self.layout_engine.get_layout(root_node) {
+                    if bounds.size.width < window_size.width {
+                        bounds.size.width = window_size.width;
+                    }
+                    if bounds.size.height < window_size.height {
+                        bounds.size.height = window_size.height;
+                    }
                     root.update_layout(&self.layout_engine, bounds.origin);
                     return root.handle_event(event, bounds);
                 }

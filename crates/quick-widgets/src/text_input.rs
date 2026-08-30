@@ -39,7 +39,7 @@ impl TextInput {
         style.border_width = Some(1.0);
         style.border_radius = Some(BorderRadius::all(4.0));
         style.padding = Some(Insets::symmetric(6.0, 10.0));
-        style.font_size = Some(14.0);
+        style.font_size = Some(quick_style::base::TypeScale::INPUT);
 
         Self {
             id: None,
@@ -151,7 +151,7 @@ impl Widget for TextInput {
         canvas.stroke_rounded_rect(bounds, radius, border_color, border_width);
 
         // 3. Text & Placeholder Rendering
-        let font_size = self.style.font_size.unwrap_or(14.0);
+        let font_size = self.style.font_size.unwrap_or(quick_style::base::TypeScale::INPUT);
         let pad_left = self.style.padding.map(|p| p.left).unwrap_or(8.0);
         let origin_x = bounds.origin.x + pad_left;
         let origin_y = bounds.origin.y + ((bounds.size.height + font_size * 0.8) / 2.0);
@@ -205,7 +205,7 @@ impl Widget for TextInput {
                         self.is_focused = true;
                         // Calculate cursor position from click X coordinate
                         let pad_left = self.style.padding.map(|p| p.left).unwrap_or(8.0);
-                        let font_size = self.style.font_size.unwrap_or(14.0);
+                        let font_size = self.style.font_size.unwrap_or(quick_style::base::TypeScale::INPUT);
                         let char_width = font_size * 0.55;
                         let relative_x = (position.x - (bounds.origin.x + pad_left)).max(0.0);
                         let clicked_idx = (relative_x / char_width).round() as usize;

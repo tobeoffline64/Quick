@@ -152,6 +152,24 @@ pub struct TypeScaleRef {
     pub button: f32,  pub input: f32, pub chip: f32,
 }
 
+impl TypeScaleRef {
+    /// Return a new TypeScaleRef scaled by the given UI scale factor (e.g. 1.0, 1.25, 1.5, 2.0).
+    pub fn with_scale(&self, factor: f32) -> Self {
+        let f = factor.max(0.5);
+        Self {
+            caption:     (self.caption * f).round(),
+            body:        (self.body * f).round(),
+            body_large:  (self.body_large * f).round(),
+            title:       (self.title * f).round(),
+            title_large: (self.title_large * f).round(),
+            display:     (self.display * f).round(),
+            button:      (self.button * f).round(),
+            input:       (self.input * f).round(),
+            chip:        (self.chip * f).round(),
+        }
+    }
+}
+
 impl Default for TypeScaleRef {
     fn default() -> Self {
         Self {
