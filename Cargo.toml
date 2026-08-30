@@ -20,7 +20,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Quick Framework Team"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/quick-silver/quick"
+repository = "https://github.com/tobeoffline64/Quick"
 
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive", "rc"] }
@@ -35,7 +35,7 @@ smallvec = { version = "1.13", features = ["serde"] }
 slotmap = { version = "1.0", features = ["serde"] }
 parking_lot = "0.12"
 thiserror = "2.0"
-log = { workspace = true }
+log = "0.4"
 env_logger = "0.11"
 memchr = "2.7"
 simdutf8 = "0.1"
