@@ -1,4 +1,4 @@
-use quick_core::geometry::{BorderRadius, Color};
+use quick_core::geometry::Color;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]

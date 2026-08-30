@@ -289,6 +289,14 @@ impl Color {
         }
     }
 
+    pub fn to_hex(&self) -> String {
+        if self.a == 255 {
+            format!("#{:02X}{:02X}{:02X}", self.r, self.g, self.b)
+        } else {
+            format!("#{:02X}{:02X}{:02X}{:02X}", self.r, self.g, self.b, self.a)
+        }
+    }
+
     pub fn to_argb_u32(self) -> u32 {
         ((self.a as u32) << 24)
             | ((self.r as u32) << 16)
