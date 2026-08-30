@@ -1,5 +1,4 @@
 use crate::schema::{UiDocument, UiNode};
-use memchr::memchr;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
@@ -23,7 +22,12 @@ pub fn parse_xml(xml_content: &str) -> Result<UiDocument, String> {
 
                 if tag_name.eq_ignore_ascii_case("Style") || tag_name.eq_ignore_ascii_case("Styles") {
                     let text = reader.read_text(e.name()).map_err(|err| err.to_string())?;
-                    doc.styles = Some(text.to_string());
+                    if let Some(ref mut existing) = doc.styles {
+                        existing.push('\n');
+                        existing.push_str(&text);
+                    } else {
+                        doc.styles = Some(text.to_string());
+                    }
                     continue;
                 }
 
@@ -138,5 +142,24 @@ mod tests {
         assert_eq!(doc.root.children[0].element, "Text");
         assert_eq!(doc.root.children[1].element, "Button");
         assert_eq!(doc.root.children[1].on_click, Some("increment".to_string()));
+    }
+
+    #[test]
+    fn test_parse_xml_multiple_styles() {
+        let xml = r#"
+        <VStack>
+            <Style>
+                Text { color: #fff; }
+            </Style>
+            <Style>
+                Button { background: #3b82f6; }
+            </Style>
+            <Text text="Hello" />
+        </VStack>
+        "#;
+        let doc = parse_xml(xml).unwrap();
+        let styles = doc.styles.unwrap();
+        assert!(styles.contains("Text"));
+        assert!(styles.contains("Button"));
     }
 }

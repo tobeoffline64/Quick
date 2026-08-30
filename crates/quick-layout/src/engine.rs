@@ -1,8 +1,9 @@
-use quick_core::geometry::{Point, Rect, Size};
+use quick_core::geometry::{Rect, Size};
 use quick_style::property::{
-    AlignItems, Dimension, FlexDirection, JustifyContent, Style,
+    AlignItems, Dimension as QuickDimension, FlexDirection, JustifyContent, Style,
 };
 use taffy::prelude::*;
+use taffy::TaffyError;
 
 pub struct LayoutEngine {
     tree: TaffyTree<()>,
@@ -63,17 +64,49 @@ impl LayoutEngine {
 
         if let Some(dim) = style.width {
             ts.size.width = match dim {
-                Dimension::Auto => LengthPercentageAuto::Auto,
-                Dimension::Px(px) => LengthPercentageAuto::Length(px),
-                Dimension::Percent(pct) => LengthPercentageAuto::Percent(pct / 100.0),
+                QuickDimension::Auto => Dimension::Auto,
+                QuickDimension::Px(px) => Dimension::Length(px),
+                QuickDimension::Percent(pct) => Dimension::Percent(pct / 100.0),
             };
         }
 
         if let Some(dim) = style.height {
             ts.size.height = match dim {
-                Dimension::Auto => LengthPercentageAuto::Auto,
-                Dimension::Px(px) => LengthPercentageAuto::Length(px),
-                Dimension::Percent(pct) => LengthPercentageAuto::Percent(pct / 100.0),
+                QuickDimension::Auto => Dimension::Auto,
+                QuickDimension::Px(px) => Dimension::Length(px),
+                QuickDimension::Percent(pct) => Dimension::Percent(pct / 100.0),
+            };
+        }
+
+        if let Some(dim) = style.min_width {
+            ts.min_size.width = match dim {
+                QuickDimension::Auto => Dimension::Auto,
+                QuickDimension::Px(px) => Dimension::Length(px),
+                QuickDimension::Percent(pct) => Dimension::Percent(pct / 100.0),
+            };
+        }
+
+        if let Some(dim) = style.min_height {
+            ts.min_size.height = match dim {
+                QuickDimension::Auto => Dimension::Auto,
+                QuickDimension::Px(px) => Dimension::Length(px),
+                QuickDimension::Percent(pct) => Dimension::Percent(pct / 100.0),
+            };
+        }
+
+        if let Some(dim) = style.max_width {
+            ts.max_size.width = match dim {
+                QuickDimension::Auto => Dimension::Auto,
+                QuickDimension::Px(px) => Dimension::Length(px),
+                QuickDimension::Percent(pct) => Dimension::Percent(pct / 100.0),
+            };
+        }
+
+        if let Some(dim) = style.max_height {
+            ts.max_size.height = match dim {
+                QuickDimension::Auto => Dimension::Auto,
+                QuickDimension::Px(px) => Dimension::Length(px),
+                QuickDimension::Percent(pct) => Dimension::Percent(pct / 100.0),
             };
         }
 
@@ -133,5 +166,92 @@ impl LayoutEngine {
         }
 
         ts
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_layout_computation() {
+        let mut engine = LayoutEngine::new();
+
+        let mut child1_style = Style::default();
+        child1_style.width = Some(QuickDimension::Px(100.0));
+        child1_style.height = Some(QuickDimension::Px(50.0));
+        let c1 = engine.new_leaf(&child1_style).unwrap();
+
+        let mut child2_style = Style::default();
+        child2_style.width = Some(QuickDimension::Px(100.0));
+        child2_style.height = Some(QuickDimension::Px(50.0));
+        let c2 = engine.new_leaf(&child2_style).unwrap();
+
+        let mut root_style = Style::default();
+        root_style.flex_direction = Some(FlexDirection::Row);
+        root_style.width = Some(QuickDimension::Px(300.0));
+        root_style.height = Some(QuickDimension::Px(100.0));
+
+        let root = engine.new_with_children(&root_style, &[c1, c2]).unwrap();
+        engine.compute_layout(root, Size::new(300.0, 100.0)).unwrap();
+
+        let r1 = engine.get_layout(c1).unwrap();
+        let r2 = engine.get_layout(c2).unwrap();
+
+        assert_eq!(r1.size.width, 100.0);
+        assert_eq!(r1.size.height, 50.0);
+        assert_eq!(r2.origin.x, 100.0);
+    }
+
+    #[test]
+    fn test_nested_percent_layout() {
+        let mut engine = LayoutEngine::new();
+
+        let mut child_style = Style::default();
+        child_style.width = Some(QuickDimension::Percent(50.0));
+        child_style.height = Some(QuickDimension::Percent(100.0));
+        let c1 = engine.new_leaf(&child_style).unwrap();
+        let c2 = engine.new_leaf(&child_style).unwrap();
+
+        let mut parent_style = Style::default();
+        parent_style.flex_direction = Some(FlexDirection::Row);
+        parent_style.width = Some(QuickDimension::Px(400.0));
+        parent_style.height = Some(QuickDimension::Px(200.0));
+
+        let root = engine.new_with_children(&parent_style, &[c1, c2]).unwrap();
+        engine.compute_layout(root, Size::new(400.0, 200.0)).unwrap();
+
+        let r1 = engine.get_layout(c1).unwrap();
+        let r2 = engine.get_layout(c2).unwrap();
+
+        assert_eq!(r1.size.width, 200.0);
+        assert_eq!(r1.size.height, 200.0);
+        assert_eq!(r2.origin.x, 200.0);
+        assert_eq!(r2.size.width, 200.0);
+    }
+
+    #[test]
+    fn test_min_max_size_constraints() {
+        let mut engine = LayoutEngine::new();
+
+        let mut child_style = Style::default();
+        child_style.width = Some(QuickDimension::Px(50.0));
+        child_style.min_width = Some(QuickDimension::Px(120.0));
+        child_style.max_width = Some(QuickDimension::Px(250.0));
+        child_style.height = Some(QuickDimension::Px(30.0));
+        child_style.min_height = Some(QuickDimension::Px(60.0));
+
+        let c1 = engine.new_leaf(&child_style).unwrap();
+
+        let mut root_style = Style::default();
+        root_style.width = Some(QuickDimension::Px(400.0));
+        root_style.height = Some(QuickDimension::Px(200.0));
+
+        let root = engine.new_with_children(&root_style, &[c1]).unwrap();
+        engine.compute_layout(root, Size::new(400.0, 200.0)).unwrap();
+
+        let r1 = engine.get_layout(c1).unwrap();
+        assert_eq!(r1.size.width, 120.0); // min-width 120 overrides width 50
+        assert_eq!(r1.size.height, 60.0); // min-height 60 overrides height 30
     }
 }

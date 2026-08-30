@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -23,7 +22,7 @@ thread_local! {
 struct ReactiveGraph {
     subscribers: std::collections::HashMap<NodeId, HashSet<NodeId>>,
     effects: std::collections::HashMap<NodeId, Rc<dyn Fn()>>,
-    batching: bool,
+    batch_depth: usize,
     pending_effects: HashSet<NodeId>,
 }
 
@@ -32,7 +31,7 @@ impl ReactiveGraph {
         Self {
             subscribers: std::collections::HashMap::new(),
             effects: std::collections::HashMap::new(),
-            batching: false,
+            batch_depth: 0,
             pending_effects: HashSet::new(),
         }
     }
@@ -43,20 +42,18 @@ impl ReactiveGraph {
         }
     }
 
-    fn trigger(&mut self, signal_id: NodeId) {
-        if let Some(subs) = self.subscribers.get(&signal_id).cloned() {
-            for sub in subs {
-                if self.batching {
+    fn notify(&mut self, signal_id: NodeId) -> Vec<(NodeId, Rc<dyn Fn()>)> {
+        let mut to_run = Vec::new();
+        if let Some(subs) = self.subscribers.get(&signal_id) {
+            for &sub in subs {
+                if self.batch_depth > 0 {
                     self.pending_effects.insert(sub);
-                } else if let Some(effect) = self.effects.get(&sub).cloned() {
-                    CURRENT_OBSERVER.with(|o| {
-                        let prev = o.replace(Some(sub));
-                        effect();
-                        o.replace(prev);
-                    });
+                } else if let Some(effect) = self.effects.get(&sub) {
+                    to_run.push((sub, effect.clone()));
                 }
             }
         }
+        to_run
     }
 }
 
@@ -99,13 +96,27 @@ impl<T: 'static + Clone> Signal<T> {
     /// Set a new value and trigger all dependent effects.
     pub fn set(&self, new_val: T) {
         *self.value.borrow_mut() = new_val;
-        GRAPH.with(|g| g.borrow_mut().trigger(self.id));
+        let effects = GRAPH.with(|g| g.borrow_mut().notify(self.id));
+        for (sub, effect) in effects {
+            CURRENT_OBSERVER.with(|o| {
+                let prev = o.replace(Some(sub));
+                effect();
+                o.replace(prev);
+            });
+        }
     }
 
     /// Update value with a closure and trigger effects.
     pub fn update<F: FnOnce(&mut T)>(&self, f: F) {
         f(&mut self.value.borrow_mut());
-        GRAPH.with(|g| g.borrow_mut().trigger(self.id));
+        let effects = GRAPH.with(|g| g.borrow_mut().notify(self.id));
+        for (sub, effect) in effects {
+            CURRENT_OBSERVER.with(|o| {
+                let prev = o.replace(Some(sub));
+                effect();
+                o.replace(prev);
+            });
+        }
     }
 }
 
@@ -151,22 +162,30 @@ pub fn create_computed<T: 'static + Clone, F: Fn() -> T + 'static>(calc_fn: F) -
 
 /// Batch multiple signal writes to notify subscribers only once at the end.
 pub fn batch<R, F: FnOnce() -> R>(f: F) -> R {
-    GRAPH.with(|g| g.borrow_mut().batching = true);
+    GRAPH.with(|g| g.borrow_mut().batch_depth += 1);
     let res = f();
-    GRAPH.with(|g| {
+    let to_run: Vec<(NodeId, Rc<dyn Fn()>)> = GRAPH.with(|g| {
         let mut graph = g.borrow_mut();
-        graph.batching = false;
-        let pending = std::mem::take(&mut graph.pending_effects);
-        for sub in pending {
-            if let Some(effect) = graph.effects.get(&sub).cloned() {
-                CURRENT_OBSERVER.with(|o| {
-                    let prev = o.replace(Some(sub));
-                    effect();
-                    o.replace(prev);
-                });
-            }
+        if graph.batch_depth > 0 {
+            graph.batch_depth -= 1;
+        }
+        if graph.batch_depth == 0 {
+            let pending = std::mem::take(&mut graph.pending_effects);
+            pending
+                .into_iter()
+                .filter_map(|sub| graph.effects.get(&sub).cloned().map(|e| (sub, e)))
+                .collect()
+        } else {
+            Vec::new()
         }
     });
+    for (sub, effect) in to_run {
+        CURRENT_OBSERVER.with(|o| {
+            let prev = o.replace(Some(sub));
+            effect();
+            o.replace(prev);
+        });
+    }
     res
 }
 
@@ -185,6 +204,21 @@ mod tests {
     }
 
     #[test]
+    fn test_signal_with_borrow() {
+        let text = Signal::new("Hello Quick".to_string());
+        let len = text.with(|s| s.len());
+        assert_eq!(len, 11);
+    }
+
+    #[test]
+    fn test_create_signal_helper() {
+        let (getter, setter) = create_signal(42);
+        assert_eq!(getter.get(), 42);
+        setter.set(100);
+        assert_eq!(getter.get(), 100);
+    }
+
+    #[test]
     fn test_computed_signal() {
         let a = Signal::new(2);
         let b = Signal::new(3);
@@ -197,5 +231,87 @@ mod tests {
         assert_eq!(sum.get(), 13);
         b.set(20);
         assert_eq!(sum.get(), 30);
+    }
+
+    #[test]
+    fn test_signal_batching() {
+        let a = Signal::new(1);
+        let b = Signal::new(10);
+        let run_count = Rc::new(RefCell::new(0));
+
+        let a_cl = a.clone();
+        let b_cl = b.clone();
+        let rc_cl = run_count.clone();
+
+        create_effect(move || {
+            let _ = a_cl.get() + b_cl.get();
+            *rc_cl.borrow_mut() += 1;
+        });
+
+        // initial run
+        assert_eq!(*run_count.borrow(), 1);
+
+        batch(|| {
+            a.set(2);
+            b.set(20);
+        });
+
+        // effect should run only once for the batch
+        assert_eq!(*run_count.borrow(), 2);
+    }
+
+    #[test]
+    fn test_nested_signal_batching() {
+        let a = Signal::new(1);
+        let b = Signal::new(10);
+        let c = Signal::new(100);
+        let run_count = Rc::new(RefCell::new(0));
+
+        let a_cl = a.clone();
+        let b_cl = b.clone();
+        let c_cl = c.clone();
+        let rc_cl = run_count.clone();
+
+        create_effect(move || {
+            let _ = a_cl.get() + b_cl.get() + c_cl.get();
+            *rc_cl.borrow_mut() += 1;
+        });
+
+        assert_eq!(*run_count.borrow(), 1);
+
+        batch(|| {
+            a.set(2);
+            batch(|| {
+                b.set(20);
+                c.set(200);
+            });
+            a.set(3);
+        });
+
+        // Nested batch should NOT flush early; effect should run only ONCE for the entire outer batch
+        assert_eq!(*run_count.borrow(), 2);
+    }
+
+    #[test]
+    fn test_signal_untracked() {
+        let a = Signal::new(5);
+        assert_eq!(a.get_untracked(), 5);
+        a.set(15);
+        assert_eq!(a.get_untracked(), 15);
+    }
+
+    #[test]
+    fn test_chained_computed_signals() {
+        let root = Signal::new(1);
+        let r1 = root.clone();
+        let s2 = create_computed(move || r1.get() * 2);
+        let s2_cl = s2.clone();
+        let s3 = create_computed(move || s2_cl.get() + 10);
+        let s3_cl = s3.clone();
+        let s4 = create_computed(move || format!("Value: {}", s3_cl.get()));
+
+        assert_eq!(s4.get(), "Value: 12");
+        root.set(5);
+        assert_eq!(s4.get(), "Value: 20");
     }
 }

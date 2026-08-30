@@ -17,3 +17,6 @@ log = { workspace = true }
 thiserror = { workspace = true }
 memchr = { workspace = true }
 simdutf8 = { workspace = true }
+
+[dev-dependencies]
+quick-layout = { path = "../quick-layout" }

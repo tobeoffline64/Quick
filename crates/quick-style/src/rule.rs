@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::property::Style;
 use crate::selector::{PseudoState, Selector};
 use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StyleRule {
@@ -25,7 +26,7 @@ impl ResourceDictionary {
         }
     }
 
-    pub fn get<'a, T: Deserialize<'a>>(&'a self, key: &str) -> Option<T> {
+    pub fn get<T: DeserializeOwned>(&self, key: &str) -> Option<T> {
         self.values.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
     }
 }
@@ -68,5 +69,21 @@ impl StyleSheet {
             computed.merge_with(&rule.style);
         }
         computed
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resource_dictionary() {
+        let mut dict = ResourceDictionary::new();
+        dict.set("font_size", 16.0f32);
+        dict.set("theme", "dark".to_string());
+
+        assert_eq!(dict.get::<f32>("font_size"), Some(16.0));
+        assert_eq!(dict.get::<String>("theme"), Some("dark".to_string()));
+        assert_eq!(dict.get::<i32>("non_existent"), None);
     }
 }

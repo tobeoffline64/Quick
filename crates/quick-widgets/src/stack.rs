@@ -1,5 +1,4 @@
 use crate::container::Container;
-use crate::widget::Widget;
 use quick_style::property::FlexDirection;
 
 pub struct VStack;

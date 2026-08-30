@@ -4,7 +4,8 @@ use quick_core::geometry::{BorderRadius, Color, Insets, Point, Rect};
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
 use quick_style::property::{Dimension, Style};
-use taffy::prelude::{NodeId, TaffyError};
+use taffy::prelude::NodeId;
+use taffy::TaffyError;
 
 pub struct Button {
     pub id: Option<String>,
@@ -65,7 +66,7 @@ impl Widget for Button {
 
     fn build_layout(&mut self, engine: &mut LayoutEngine) -> Result<NodeId, TaffyError> {
         let font_size = self.style.font_size.unwrap_or(14.0);
-        let char_count = self.text.len() as f32;
+        let char_count = self.text.chars().count() as f32;
         let pad_h = self.style.padding.map(|p| p.left + p.right).unwrap_or(32.0);
         let pad_v = self.style.padding.map(|p| p.top + p.bottom).unwrap_or(16.0);
 
@@ -107,9 +108,19 @@ impl Widget for Button {
             canvas.fill_rect(bounds, bg_color);
         }
 
+        if let (Some(border_color), Some(border_width)) =
+            (self.style.border_color, self.style.border_width)
+        {
+            if let Some(radius) = self.style.border_radius {
+                canvas.stroke_rounded_rect(bounds, radius, border_color, border_width);
+            } else {
+                canvas.stroke_rect(bounds, border_color, border_width);
+            }
+        }
+
         let font_size = self.style.font_size.unwrap_or(14.0);
         let text_color = self.style.text_color.unwrap_or(Color::WHITE);
-        let char_count = self.text.len() as f32;
+        let char_count = self.text.chars().count() as f32;
         let text_w = char_count * font_size * 0.55;
         let origin_x = bounds.origin.x + ((bounds.size.width - text_w) / 2.0).max(0.0);
         let origin_y = bounds.origin.y + ((bounds.size.height + font_size * 0.8) / 2.0);
@@ -149,5 +160,41 @@ impl Widget for Button {
             }
         }
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_button_click_event() {
+        let clicked = Rc::new(RefCell::new(false));
+        let clicked_cl = clicked.clone();
+
+        let mut btn = Button::new("Click").on_click(move || {
+            *clicked_cl.borrow_mut() = true;
+        });
+
+        let bounds = Rect::new(0.0, 0.0, 100.0, 40.0);
+
+        let down_event = Event::Pointer(PointerEvent {
+            position: Point::new(50.0, 20.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        assert!(btn.handle_event(&down_event, bounds));
+
+        let up_event = Event::Pointer(PointerEvent {
+            position: Point::new(50.0, 20.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Up,
+            modifiers: Default::default(),
+        });
+        assert!(btn.handle_event(&up_event, bounds));
+        assert!(*clicked.borrow());
     }
 }

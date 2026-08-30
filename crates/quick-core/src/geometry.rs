@@ -242,13 +242,35 @@ impl Color {
     }
 
     pub fn from_hex(hex: &str) -> Result<Self, String> {
-        let hex = hex.trim_start_matches('#');
+        let trimmed = hex.trim().to_lowercase();
+        match trimmed.as_str() {
+            "transparent" => return Ok(Self::TRANSPARENT),
+            "black" => return Ok(Self::BLACK),
+            "white" => return Ok(Self::WHITE),
+            "red" => return Ok(Self::RED),
+            "green" => return Ok(Self::GREEN),
+            "blue" => return Ok(Self::BLUE),
+            "gray" | "grey" => return Ok(Self::from_rgb(128, 128, 128)),
+            "yellow" => return Ok(Self::from_rgb(255, 255, 0)),
+            "cyan" => return Ok(Self::from_rgb(0, 255, 255)),
+            "magenta" => return Ok(Self::from_rgb(255, 0, 255)),
+            _ => {}
+        }
+
+        let hex = trimmed.trim_start_matches('#');
         match hex.len() {
             3 => {
                 let r = u8::from_str_radix(&hex[0..1].repeat(2), 16).map_err(|e| e.to_string())?;
                 let g = u8::from_str_radix(&hex[1..2].repeat(2), 16).map_err(|e| e.to_string())?;
                 let b = u8::from_str_radix(&hex[2..3].repeat(2), 16).map_err(|e| e.to_string())?;
                 Ok(Self::from_rgb(r, g, b))
+            }
+            4 => {
+                let r = u8::from_str_radix(&hex[0..1].repeat(2), 16).map_err(|e| e.to_string())?;
+                let g = u8::from_str_radix(&hex[1..2].repeat(2), 16).map_err(|e| e.to_string())?;
+                let b = u8::from_str_radix(&hex[2..3].repeat(2), 16).map_err(|e| e.to_string())?;
+                let a = u8::from_str_radix(&hex[3..4].repeat(2), 16).map_err(|e| e.to_string())?;
+                Ok(Self::from_rgba(r, g, b, a))
             }
             6 => {
                 let r = u8::from_str_radix(&hex[0..2], 16).map_err(|e| e.to_string())?;
@@ -338,5 +360,57 @@ impl Transform {
             self.a * point.x + self.c * point.y + self.tx,
             self.b * point.x + self.d * point.y + self.ty,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_point_and_rect() {
+        let p1 = Point::new(10.0, 20.0);
+        let p2 = Point::new(10.0, 25.0);
+        assert_eq!(p1.distance_to(p2), 5.0);
+
+        let r1 = Rect::new(0.0, 0.0, 100.0, 100.0);
+        assert!(r1.contains(Point::new(50.0, 50.0)));
+        assert!(!r1.contains(Point::new(150.0, 50.0)));
+
+        let r2 = Rect::new(50.0, 50.0, 100.0, 100.0);
+        assert!(r1.intersects(&r2));
+
+        let union = r1.union(&r2);
+        assert_eq!(union, Rect::new(0.0, 0.0, 150.0, 150.0));
+    }
+
+    #[test]
+    fn test_color_hex_parsing() {
+        let red = Color::from_hex("#ff0000").unwrap();
+        assert_eq!(red, Color::from_rgb(255, 0, 0));
+
+        let blue_short = Color::from_hex("#00f").unwrap();
+        assert_eq!(blue_short, Color::from_rgb(0, 0, 255));
+
+        let rgba_short = Color::from_hex("#f008").unwrap();
+        assert_eq!(rgba_short, Color::from_rgba(255, 0, 0, 136));
+
+        let semi_green = Color::from_hex("#00ff0080").unwrap();
+        assert_eq!(semi_green, Color::from_rgba(0, 255, 0, 128));
+
+        let white = Color::from_hex("white").unwrap();
+        assert_eq!(white, Color::WHITE);
+
+        let transparent = Color::from_hex("transparent").unwrap();
+        assert_eq!(transparent, Color::TRANSPARENT);
+
+        assert!(Color::from_hex("invalid_color_123").is_err());
+    }
+
+    #[test]
+    fn test_transform() {
+        let t = Transform::translation(10.0, 20.0);
+        let p = t.transform_point(Point::new(5.0, 5.0));
+        assert_eq!(p, Point::new(15.0, 25.0));
     }
 }

@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
+[features]
+default = ["mimalloc"]
+mimalloc = ["quick/mimalloc"]
+
 [dependencies]
 quick = { path = "../../crates/quick" }
 quick-core = { path = "../../crates/quick-core" }

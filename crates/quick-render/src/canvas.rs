@@ -125,3 +125,24 @@ impl Canvas {
         self.frame_arena.reset();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_canvas_and_bump_arena() {
+        let mut canvas = Canvas::new();
+        canvas.clear(Color::BLACK);
+        canvas.fill_rect(Rect::new(0.0, 0.0, 100.0, 100.0), Color::RED);
+
+        assert_eq!(canvas.commands().len(), 2);
+
+        // Test arena allocation
+        let s = canvas.arena().alloc_str("temporary per-frame string");
+        assert_eq!(s, "temporary per-frame string");
+
+        canvas.reset();
+        assert_eq!(canvas.commands().len(), 0);
+    }
+}

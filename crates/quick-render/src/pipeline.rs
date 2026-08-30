@@ -1,5 +1,5 @@
+#[cfg(feature = "skia")]
 use crate::canvas::{Canvas, DrawCommand};
-use quick_core::geometry::Color;
 
 pub struct RenderPipeline;
 

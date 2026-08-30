@@ -32,6 +32,18 @@ impl App {
         }
     }
 
+    pub fn window_options(&self) -> &WindowOptions {
+        &self.window_options
+    }
+
+    pub fn damage_tracker(&self) -> &DamageTracker {
+        &self.damage_tracker
+    }
+
+    pub fn damage_tracker_mut(&mut self) -> &mut DamageTracker {
+        &mut self.damage_tracker
+    }
+
     pub fn with_root(mut self, root: impl Widget + 'static) -> Self {
         self.root = Some(Box::new(root));
         self
@@ -81,6 +93,7 @@ impl App {
             if let Ok(root_node) = root.build_layout(&mut self.layout_engine) {
                 let _ = self.layout_engine.compute_layout(root_node, window_size);
                 if let Ok(bounds) = self.layout_engine.get_layout(root_node) {
+                    root.update_layout(&self.layout_engine, bounds.origin);
                     root.paint(&mut self.canvas, bounds);
                 }
             }
@@ -91,10 +104,97 @@ impl App {
 
     pub fn handle_event(&mut self, event: &quick_core::event::Event, window_size: Size) -> bool {
         if let Some(ref mut root) = self.root {
+            self.layout_engine.reset();
+            if let Ok(root_node) = root.build_layout(&mut self.layout_engine) {
+                let _ = self.layout_engine.compute_layout(root_node, window_size);
+                if let Ok(bounds) = self.layout_engine.get_layout(root_node) {
+                    root.update_layout(&self.layout_engine, bounds.origin);
+                    return root.handle_event(event, bounds);
+                }
+            }
             let bounds = Rect::from_origin_size(quick_core::geometry::Point::ZERO, window_size);
             root.handle_event(event, bounds)
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_app_from_quick_and_render() {
+        let quick_doc = r#"
+<VStack style="background: #1e1e2e; padding: 20px;">
+    <Text id="label" text="Hello Quick!" />
+    <Button id="btn" text="Click me" />
+</VStack>
+"#;
+        let mut ctx = DataContext::new();
+        let mut app = App::new(WindowOptions::new().title("Test App"))
+            .from_quick(quick_doc, &mut ctx)
+            .unwrap();
+
+        let canvas = app.render_frame(Size::new(400.0, 300.0));
+        // Verify root background + text + button background + button text are rendered
+        assert!(canvas.commands().len() >= 4);
+    }
+
+    #[test]
+    fn test_app_interactive_click_and_rerender() {
+        use quick_core::event::{PointerButton, PointerEvent, PointerPhase};
+        use quick_core::geometry::Point;
+        use quick_core::signals::{create_computed, Signal};
+
+        let counter = Signal::new(0);
+        let counter_sig = counter.clone();
+        let greeting = create_computed(move || format!("Clicks: {}", counter_sig.get()));
+
+        let mut ctx = DataContext::new();
+        ctx.bind_signal("greeting", greeting.clone());
+
+        let inc = counter.clone();
+        ctx.bind_action("increment", move || {
+            inc.update(|v| *v += 1);
+        });
+
+        let quick_doc = r#"
+<VStack style="background: #0d1117; width: 400px; height: 300px; padding: 20px; align-items: center;">
+    <Text id="label" text="$greeting" />
+    <Button id="btn-inc" text="Click" onclick="increment" />
+</VStack>
+"#;
+        let mut app = App::new(WindowOptions::new().title("Interactive App"))
+            .from_quick(quick_doc, &mut ctx)
+            .unwrap();
+
+        let window_size = Size::new(400.0, 300.0);
+        let canvas_1 = app.render_frame(window_size);
+        assert!(canvas_1.commands().len() >= 4);
+        assert_eq!(greeting.get(), "Clicks: 0");
+
+        // Click on the button (centered at x=200, y=55)
+        let down = quick_core::event::Event::Pointer(PointerEvent {
+            position: Point::new(200.0, 55.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        assert!(app.handle_event(&down, window_size));
+
+        let up = quick_core::event::Event::Pointer(PointerEvent {
+            position: Point::new(200.0, 55.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Up,
+            modifiers: Default::default(),
+        });
+        assert!(app.handle_event(&up, window_size));
+
+        assert_eq!(greeting.get(), "Clicks: 1");
+
+        let canvas_2 = app.render_frame(Size::new(400.0, 300.0));
+        assert!(canvas_2.commands().len() >= 4);
     }
 }

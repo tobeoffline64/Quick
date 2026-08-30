@@ -4,7 +4,8 @@ use quick_core::geometry::{BorderRadius, Color, Insets, Point, Rect};
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
 use quick_style::property::{Dimension, Style};
-use taffy::prelude::{NodeId, TaffyError};
+use taffy::prelude::NodeId;
+use taffy::TaffyError;
 
 pub struct TextInput {
     pub id: Option<String>,
@@ -13,8 +14,8 @@ pub struct TextInput {
     pub value: String,
     pub placeholder: String,
     pub on_change: Option<Box<dyn FnMut(String)>>,
-    is_focused: bool,
-    cursor_pos: usize,
+    pub is_focused: bool,
+    pub cursor_pos: usize,
 }
 
 impl TextInput {
@@ -137,6 +138,12 @@ impl Widget for TextInput {
                         }
                     }
                     return true;
+                } else if key_event.key == "Space" && key_event.text.is_none() {
+                    self.value.push(' ');
+                    if let Some(ref mut handler) = self.on_change {
+                        handler(self.value.clone());
+                    }
+                    return true;
                 } else if let Some(ref ch) = key_event.text {
                     self.value.push_str(ch);
                     if let Some(ref mut handler) = self.on_change {
@@ -145,8 +152,74 @@ impl Widget for TextInput {
                     return true;
                 }
             }
+            Event::Focus(quick_core::event::FocusEvent::Lost) => {
+                self.is_focused = false;
+            }
             _ => {}
         }
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quick_core::event::KeyEvent;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_text_input_typing_and_backspace() {
+        let changed_val = Rc::new(RefCell::new(String::new()));
+        let changed_cl = changed_val.clone();
+
+        let mut input = TextInput::new("Placeholder");
+        input.on_change = Some(Box::new(move |val| {
+            *changed_cl.borrow_mut() = val;
+        }));
+
+        let bounds = Rect::new(0.0, 0.0, 200.0, 35.0);
+
+        // Click to focus
+        let click = Event::Pointer(PointerEvent {
+            position: Point::new(10.0, 10.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        assert!(input.handle_event(&click, bounds));
+        assert!(input.is_focused);
+
+        // Type 'H'
+        let key_h = Event::Key(KeyEvent {
+            key: "h".to_string(),
+            state: KeyState::Pressed,
+            text: Some("H".to_string()),
+            modifiers: Default::default(),
+        });
+        assert!(input.handle_event(&key_h, bounds));
+        assert_eq!(input.value, "H");
+        assert_eq!(*changed_val.borrow(), "H");
+
+        // Type 'i'
+        let key_i = Event::Key(KeyEvent {
+            key: "i".to_string(),
+            state: KeyState::Pressed,
+            text: Some("i".to_string()),
+            modifiers: Default::default(),
+        });
+        assert!(input.handle_event(&key_i, bounds));
+        assert_eq!(input.value, "Hi");
+
+        // Backspace
+        let backspace = Event::Key(KeyEvent {
+            key: "Backspace".to_string(),
+            state: KeyState::Pressed,
+            text: None,
+            modifiers: Default::default(),
+        });
+        assert!(input.handle_event(&backspace, bounds));
+        assert_eq!(input.value, "H");
+        assert_eq!(*changed_val.borrow(), "H");
     }
 }
