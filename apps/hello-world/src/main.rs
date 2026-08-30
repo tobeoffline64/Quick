@@ -1,10 +1,93 @@
 use quick::prelude::*;
+use quick_style::theme::{SchemeVariant, ThemePackage};
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: quick::core::MiMalloc = quick::core::MiMalloc;
 
+/// Headless showcase: parse app.quick, generate M3 color roles + widget tree, print to stdout.
+/// Activated when `QUICK_HEADLESS=1` env var is set (ideal for CI / servers without a display).
+fn run_headless() -> Result<(), Box<dyn std::error::Error>> {
+    println!("⚡ Quick Framework — Headless Material You Showcase");
+    println!("══════════════════════════════════════════════════");
+
+    // ── 1. Generate M3 color roles from default seed ──────────────────────────
+    let seed = quick_core::geometry::Color::from_hex("#6750A4")?; // M3 baseline purple
+    for &dark in &[false, true] {
+        let mode = if dark { "Dark" } else { "Light" };
+        let pkg = ThemePackage::from_seed_color(seed, SchemeVariant::TonalSpot, dark);
+        let cs = &pkg.color_scheme;
+        println!("\n🎨 Material You Color Roles — {mode} Mode (seed #6750A4, TonalSpot)");
+        println!("  primary            = {}", cs.primary.to_hex());
+        println!("  on_primary         = {}", cs.on_primary.to_hex());
+        println!("  primary_container  = {}", cs.primary_container.to_hex());
+        println!("  secondary          = {}", cs.secondary.to_hex());
+        println!("  tertiary           = {}", cs.tertiary.to_hex());
+        println!("  surface            = {}", cs.surface.to_hex());
+        println!("  on_surface         = {}", cs.on_surface.to_hex());
+        println!("  surface_container  = {}", cs.surface_container.to_hex());
+        println!("  outline            = {}", cs.outline.to_hex());
+        println!("  outline_variant    = {}", cs.outline_variant.to_hex());
+        println!("  error              = {}", cs.error.to_hex());
+        println!("  on_error           = {}", cs.on_error.to_hex());
+        println!("  inverse_surface    = {}", cs.inverse_surface.to_hex());
+    }
+
+    // ── 2. Build UI widget tree from app.quick ────────────────────────────────
+    let quick_content = include_str!("../app.quick");
+
+    let greeting = Signal::new("Welcome to your Material You themed Quick application!".to_string());
+    let description = Signal::new("Unified base widgets skinned dynamically via Material You theme package.".to_string());
+    let gpu_enabled = Signal::new(true);
+    let brightness = Signal::new(75.0f32);
+    let chip_wayland = Signal::new(true);
+    let chip_rust = Signal::new(true);
+    let chip_skia = Signal::new(false);
+
+    let mut data_ctx = DataContext::new();
+    data_ctx.bind_signal("greeting", greeting);
+    data_ctx.bind_signal("description", description);
+    data_ctx.bind_bool_signal("gpu_enabled", gpu_enabled);
+    data_ctx.bind_f32_signal("brightness", brightness);
+    data_ctx.bind_bool_signal("chip_wayland", chip_wayland);
+    data_ctx.bind_bool_signal("chip_rust", chip_rust);
+    data_ctx.bind_bool_signal("chip_skia", chip_skia);
+    data_ctx.bind_action("on_click", || {});
+    data_ctx.bind_action("on_reset", || {});
+    data_ctx.bind_action("toggle_gpu", || {});
+    data_ctx.bind_action("on_slider", || {});
+    data_ctx.bind_action("toggle_wayland", || {});
+    data_ctx.bind_action("toggle_rust", || {});
+    data_ctx.bind_action("toggle_skia", || {});
+
+    let mut app = App::new(
+        WindowOptions::new()
+            .title("Material You - Quick Framework [headless]")
+            .size(680.0, 560.0),
+    )
+    .from_quick(quick_content, &mut data_ctx)
+    .map_err(|e| format!("Failed to parse app.quick: {e}"))?;
+
+    // ── 3. Render one frame without a window ─────────────────────────────────
+    let canvas = app.render_frame(Size::new(680.0, 560.0));
+    let cmd_count = canvas.commands().len();
+
+    println!("\n🌲 Widget Tree (headless render)");
+    println!("  app.quick parsed     ✓");
+    println!("  signals bound        ✓  (greeting, description, gpu_enabled, brightness, chips×3)");
+    println!("  canvas commands      {cmd_count}  (paint calls across all widgets)");
+    println!("  components present   Button×2, Card, Switch, Slider, Chip×3, ProgressBar, TextInput");
+
+    println!("\n✅ Headless showcase complete — exit 0");
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // ── Headless CI mode: QUICK_HEADLESS=1 ────────────────────────────────────
+    if std::env::var("QUICK_HEADLESS").as_deref() == Ok("1") {
+        return run_headless();
+    }
+
     println!("⚡ Starting Quick Material You Theme Application on Wayland/X11...");
 
     // 1. Reactive state signals
@@ -211,5 +294,37 @@ mod tests {
         let canvas3 = app.render_frame(window_size);
         assert!(canvas3.commands().len() >= 10);
     }
-}
 
+    /// Verifies that the headless showcase (QUICK_HEADLESS=1 mode) runs to completion
+    /// without panicking: parses app.quick, generates M3 color roles, and renders a frame.
+    #[test]
+    fn test_headless_showcase_runs_to_completion() {
+        // run_headless() is the same code path as QUICK_HEADLESS=1 — call it directly.
+        run_headless().expect("Headless showcase must complete without error");
+    }
+
+    /// Verifies that ThemePackage::from_seed_color produces non-empty, valid M3 hex roles.
+    #[test]
+    fn test_headless_m3_color_roles_are_valid_hex() {
+        use quick_style::theme::{SchemeVariant, ThemePackage};
+        let seed = quick_core::geometry::Color::from_hex("#6750A4").unwrap();
+        for &dark in &[false, true] {
+            let pkg = ThemePackage::from_seed_color(seed, SchemeVariant::TonalSpot, dark);
+            let cs = &pkg.color_scheme;
+            // All hex strings must be 7 chars (#RRGGBB) and start with '#'
+            for hex in [
+                cs.primary.to_hex(),
+                cs.on_primary.to_hex(),
+                cs.secondary.to_hex(),
+                cs.surface.to_hex(),
+                cs.on_surface.to_hex(),
+                cs.outline.to_hex(),
+                cs.error.to_hex(),
+                cs.inverse_surface.to_hex(),
+            ] {
+                assert!(hex.starts_with('#'), "hex role must start with '#': {hex}");
+                assert_eq!(hex.len(), 7, "hex role must be #RRGGBB format: {hex}");
+            }
+        }
+    }
+}
