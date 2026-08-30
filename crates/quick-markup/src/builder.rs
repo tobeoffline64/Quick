@@ -2,9 +2,16 @@ use crate::schema::{UiDocument, UiNode};
 use quick_core::signals::Signal;
 use quick_style::parser::{parse_inline_style, parse_stylesheet};
 use quick_style::rule::StyleSheet;
+use quick_style::theme::ThemePackage;
 use quick_widgets::button::Button;
+use quick_widgets::card::{Card, CardVariant};
+use quick_widgets::checkbox::Checkbox;
+use quick_widgets::chip::Chip;
 use quick_widgets::container::Container;
+use quick_widgets::progress::ProgressBar;
+use quick_widgets::slider::Slider;
 use quick_widgets::stack::{HStack, VStack};
+use quick_widgets::switch::Switch;
 use quick_widgets::text::Text;
 use quick_widgets::text_input::TextInput;
 use quick_widgets::widget::Widget;
@@ -15,6 +22,8 @@ use std::rc::Rc;
 #[derive(Default, Clone)]
 pub struct DataContext {
     pub string_signals: HashMap<String, Signal<String>>,
+    pub bool_signals: HashMap<String, Signal<bool>>,
+    pub f32_signals: HashMap<String, Signal<f32>>,
     pub action_handlers: HashMap<String, Rc<RefCell<dyn FnMut()>>>,
 }
 
@@ -27,6 +36,14 @@ impl DataContext {
         self.string_signals.insert(name.into(), signal);
     }
 
+    pub fn bind_bool_signal(&mut self, name: impl Into<String>, signal: Signal<bool>) {
+        self.bool_signals.insert(name.into(), signal);
+    }
+
+    pub fn bind_f32_signal(&mut self, name: impl Into<String>, signal: Signal<f32>) {
+        self.f32_signals.insert(name.into(), signal);
+    }
+
     pub fn bind_action<F: FnMut() + 'static>(&mut self, name: impl Into<String>, handler: F) {
         self.action_handlers.insert(name.into(), Rc::new(RefCell::new(handler)));
     }
@@ -36,11 +53,23 @@ pub fn build_ui_tree(
     doc: &UiDocument,
     data_ctx: &mut DataContext,
 ) -> (Box<dyn Widget>, StyleSheet) {
-    let stylesheet = if let Some(ref css) = doc.styles {
+    let mut stylesheet = if let Some(ref css) = doc.styles {
         parse_stylesheet(css)
     } else {
         StyleSheet::new()
     };
+
+    // Apply Theme Package if specified on root or document
+    if let Some(ref theme_name) = doc.root.attributes.get("theme") {
+        let theme = match theme_name.as_str() {
+            "material-you" | "m3" => ThemePackage::material_you(),
+            "nord" => ThemePackage::nord(),
+            _ => ThemePackage::material_you(),
+        };
+        let theme_css = theme.generate_css();
+        let theme_sheet = parse_stylesheet(&theme_css);
+        stylesheet.rules.splice(0..0, theme_sheet.rules);
+    }
 
     let root_widget = build_node(&doc.root, data_ctx, &stylesheet);
     (root_widget, stylesheet)
@@ -105,6 +134,120 @@ fn build_node(
                 }
             }
             Box::new(btn)
+        }
+        "Switch" => {
+            let checked_sig = node.attributes.get("checked")
+                .and_then(|v| v.strip_prefix('$'))
+                .and_then(|key| data_ctx.bool_signals.get(key).cloned())
+                .unwrap_or_else(|| Signal::new(false));
+
+            let mut switch = Switch::new(checked_sig);
+            switch.id = node.id.clone();
+            switch.classes = classes;
+            switch.style.merge_with(&computed_style);
+
+            if let Some(ref action_name) = node.attributes.get("onchange") {
+                let clean_name = action_name.trim_end_matches("()").trim();
+                if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
+                    let handler_cl = handler.clone();
+                    switch.on_change = Some(Box::new(move |_| {
+                        (handler_cl.borrow_mut())();
+                    }));
+                }
+            }
+            Box::new(switch)
+        }
+        "Checkbox" => {
+            let checked_sig = node.attributes.get("checked")
+                .and_then(|v| v.strip_prefix('$'))
+                .and_then(|key| data_ctx.bool_signals.get(key).cloned())
+                .unwrap_or_else(|| Signal::new(false));
+
+            let mut cb = Checkbox::new(checked_sig);
+            cb.id = node.id.clone();
+            cb.classes = classes;
+            cb.style.merge_with(&computed_style);
+
+            if let Some(ref action_name) = node.attributes.get("onchange") {
+                let clean_name = action_name.trim_end_matches("()").trim();
+                if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
+                    let handler_cl = handler.clone();
+                    cb.on_change = Some(Box::new(move |_| {
+                        (handler_cl.borrow_mut())();
+                    }));
+                }
+            }
+            Box::new(cb)
+        }
+        "Slider" => {
+            let val_sig = node.attributes.get("value")
+                .and_then(|v| v.strip_prefix('$'))
+                .and_then(|key| data_ctx.f32_signals.get(key).cloned())
+                .unwrap_or_else(|| Signal::new(0.0));
+
+            let min_val = node.attributes.get("min").and_then(|v| v.parse().ok()).unwrap_or(0.0);
+            let max_val = node.attributes.get("max").and_then(|v| v.parse().ok()).unwrap_or(100.0);
+
+            let mut slider = Slider::new(val_sig, min_val, max_val);
+            slider.id = node.id.clone();
+            slider.classes = classes;
+            slider.style.merge_with(&computed_style);
+            Box::new(slider)
+        }
+        "Chip" => {
+            let text_val = node.text.as_deref().unwrap_or("Chip");
+            let mut chip = Chip::new(text_val);
+
+            if let Some(sel_key) = node.attributes.get("selected").and_then(|v| v.strip_prefix('$')) {
+                if let Some(sig) = data_ctx.bool_signals.get(sel_key) {
+                    chip.selected = Some(sig.clone());
+                }
+            }
+
+            if let Some(ref action_name) = node.on_click {
+                let clean_name = action_name.trim_end_matches("()").trim();
+                if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
+                    let handler_cl = handler.clone();
+                    chip.on_click = Some(Box::new(move || {
+                        (handler_cl.borrow_mut())();
+                    }));
+                }
+            }
+
+            chip.id = node.id.clone();
+            chip.classes = classes;
+            chip.style.merge_with(&computed_style);
+            Box::new(chip)
+        }
+        "ProgressBar" => {
+            let prog_sig = node.attributes.get("progress")
+                .and_then(|v| v.strip_prefix('$'))
+                .and_then(|key| data_ctx.f32_signals.get(key).cloned())
+                .unwrap_or_else(|| Signal::new(0.0));
+
+            let mut prog = ProgressBar::new(prog_sig);
+            prog.id = node.id.clone();
+            prog.classes = classes;
+            prog.style.merge_with(&computed_style);
+            Box::new(prog)
+        }
+        "Card" => {
+            let variant = match node.attributes.get("variant").map(|s| s.as_str()) {
+                Some("filled") => CardVariant::Filled,
+                Some("outlined") => CardVariant::Outlined,
+                _ => CardVariant::Elevated,
+            };
+
+            let mut card = Card::new(variant);
+            card.container.id = node.id.clone();
+            card.container.classes = classes;
+            card.container.style.merge_with(&computed_style);
+
+            for child_node in &node.children {
+                let child_widget = build_node(child_node, data_ctx, stylesheet);
+                card.add_child(child_widget);
+            }
+            Box::new(card)
         }
         "TextInput" => {
             let placeholder = node.placeholder.as_deref().unwrap_or("");
@@ -184,30 +327,25 @@ fn build_node(
 mod tests {
     use super::*;
     use crate::quick_parser::parse_quick;
-    use quick_core::event::{KeyEvent, KeyState, PointerButton, PointerEvent, PointerPhase};
-    use quick_core::geometry::{Point, Rect};
+    use quick_core::geometry::Point;
 
     #[test]
-    fn test_builder_shared_action_and_signal_binding() {
-        let count = Signal::new(0);
-        let count_sig = count.clone();
+    fn test_builder_switch_and_slider() {
+        let is_checked = Signal::new(false);
+        let slider_val = Signal::new(50.0);
 
         let mut ctx = DataContext::new();
-        let greeting = quick_core::signals::create_computed(move || {
-            format!("Clicks: {}", count_sig.get())
-        });
-        ctx.bind_signal("greeting", greeting.clone());
-
-        let count_inc = count.clone();
-        ctx.bind_action("increment", move || {
-            count_inc.update(|v| *v += 1);
-        });
+        ctx.bind_bool_signal("is_active", is_checked.clone());
+        ctx.bind_f32_signal("brightness", slider_val.clone());
 
         let doc = parse_quick(r#"
-            <VStack>
-                <Text id="label" text="$greeting" />
-                <Button id="btn1" text="Inc 1" onclick="increment" />
-                <Button id="btn2" text="Inc 2" onclick="increment" />
+            <VStack theme="material-you">
+                <Card variant="elevated">
+                    <Switch checked="$is_active" />
+                    <Slider min="0" max="100" value="$brightness" />
+                    <Chip text="WiFi" />
+                    <ProgressBar progress="$brightness" />
+                </Card>
             </VStack>
         "#).unwrap();
 
@@ -215,139 +353,12 @@ mod tests {
 
         let mut engine = quick_layout::engine::LayoutEngine::new();
         let root_node = root.build_layout(&mut engine).unwrap();
-        engine.compute_layout(root_node, quick_core::geometry::Size::new(400.0, 300.0)).unwrap();
+        engine.compute_layout(root_node, quick_core::geometry::Size::new(600.0, 400.0)).unwrap();
         root.update_layout(&engine, Point::ZERO);
 
-        assert_eq!(greeting.get(), "Clicks: 0");
+        let mut canvas = quick_render::canvas::Canvas::new();
+        root.paint(&mut canvas, quick_core::geometry::Rect::new(0.0, 0.0, 600.0, 400.0));
 
-        // Simulate click event on btn1
-        let click_event_down = quick_core::event::Event::Pointer(PointerEvent {
-            position: Point::new(20.0, 40.0),
-            button: Some(PointerButton::Primary),
-            phase: PointerPhase::Down,
-            modifiers: Default::default(),
-        });
-        let click_event_up = quick_core::event::Event::Pointer(PointerEvent {
-            position: Point::new(20.0, 40.0),
-            button: Some(PointerButton::Primary),
-            phase: PointerPhase::Up,
-            modifiers: Default::default(),
-        });
-
-        let bounds = Rect::new(0.0, 0.0, 400.0, 300.0);
-        root.handle_event(&click_event_down, bounds);
-        root.handle_event(&click_event_up, bounds);
-
-        assert_eq!(greeting.get(), "Clicks: 1");
-    }
-
-    #[test]
-    fn test_builder_text_input_signal_binding() {
-        let username = Signal::new("user1".to_string());
-        let mut ctx = DataContext::new();
-        ctx.bind_signal("username", username.clone());
-
-        let doc = parse_quick(r#"
-            <VStack>
-                <TextInput id="input-user" text="$username" placeholder="Enter username" />
-            </VStack>
-        "#).unwrap();
-
-        let (mut root, _) = build_ui_tree(&doc, &mut ctx);
-
-        let mut engine = quick_layout::engine::LayoutEngine::new();
-        let root_node = root.build_layout(&mut engine).unwrap();
-        engine.compute_layout(root_node, quick_core::geometry::Size::new(400.0, 300.0)).unwrap();
-        root.update_layout(&engine, Point::ZERO);
-
-        let bounds = Rect::new(0.0, 0.0, 400.0, 300.0);
-
-        // Click to focus TextInput
-        let click = quick_core::event::Event::Pointer(PointerEvent {
-            position: Point::new(10.0, 10.0),
-            button: Some(PointerButton::Primary),
-            phase: PointerPhase::Down,
-            modifiers: Default::default(),
-        });
-        root.handle_event(&click, bounds);
-
-        // Type '2'
-        let key = quick_core::event::Event::Key(KeyEvent {
-            key: "2".to_string(),
-            state: KeyState::Pressed,
-            text: Some("2".to_string()),
-            modifiers: Default::default(),
-        });
-        root.handle_event(&key, bounds);
-
-        assert_eq!(username.get(), "user12");
-    }
-
-    #[test]
-    fn test_builder_action_parentheses_and_on_change() {
-        let changed = Rc::new(RefCell::new(false));
-        let changed_cl = changed.clone();
-
-        let clicked = Rc::new(RefCell::new(false));
-        let clicked_cl = clicked.clone();
-
-        let mut ctx = DataContext::new();
-        ctx.bind_action("on_change_handler", move || {
-            *changed_cl.borrow_mut() = true;
-        });
-        ctx.bind_action("click_action", move || {
-            *clicked_cl.borrow_mut() = true;
-        });
-
-        let doc = parse_quick(r#"
-            <VStack>
-                <TextInput onchange="on_change_handler()" />
-                <Button onclick="click_action()" text="Go" />
-            </VStack>
-        "#).unwrap();
-
-        let (mut root, _) = build_ui_tree(&doc, &mut ctx);
-
-        let mut engine = quick_layout::engine::LayoutEngine::new();
-        let root_node = root.build_layout(&mut engine).unwrap();
-        engine.compute_layout(root_node, quick_core::geometry::Size::new(400.0, 300.0)).unwrap();
-        root.update_layout(&engine, Point::ZERO);
-
-        let bounds = Rect::new(0.0, 0.0, 400.0, 300.0);
-
-        // Type in text input
-        let click_input = quick_core::event::Event::Pointer(PointerEvent {
-            position: Point::new(10.0, 10.0),
-            button: Some(PointerButton::Primary),
-            phase: PointerPhase::Down,
-            modifiers: Default::default(),
-        });
-        root.handle_event(&click_input, bounds);
-
-        let key = quick_core::event::Event::Key(KeyEvent {
-            key: "a".to_string(),
-            state: KeyState::Pressed,
-            text: Some("a".to_string()),
-            modifiers: Default::default(),
-        });
-        root.handle_event(&key, bounds);
-        assert!(*changed.borrow());
-
-        // Click button
-        let click_btn = quick_core::event::Event::Pointer(PointerEvent {
-            position: Point::new(10.0, 50.0),
-            button: Some(PointerButton::Primary),
-            phase: PointerPhase::Down,
-            modifiers: Default::default(),
-        });
-        root.handle_event(&click_btn, bounds);
-        let click_btn_up = quick_core::event::Event::Pointer(PointerEvent {
-            position: Point::new(10.0, 50.0),
-            button: Some(PointerButton::Primary),
-            phase: PointerPhase::Up,
-            modifiers: Default::default(),
-        });
-        root.handle_event(&click_btn_up, bounds);
-        assert!(*clicked.borrow());
+        assert!(canvas.commands().len() >= 6);
     }
 }

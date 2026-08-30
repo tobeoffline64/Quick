@@ -1,0 +1,38 @@
+# Quick Material You (M3) Dynamic Theme Package Configuration
+# Defines token roles, tonal palettes, state layers, and component rules.
+
+[theme]
+name = "material-you"
+version = "3.0.0"
+author = "Quick Framework Team"
+description = "Official Google Material You dynamic theming package for Quick UI"
+
+[palette]
+seed_color = "#6750A4"
+primary = "#D0BCFF"
+on_primary = "#381E72"
+primary_container = "#4F378B"
+on_primary_container = "#EADDFF"
+
+surface = "#141218"
+on_surface = "#E6E0E9"
+surface_container = "#211F26"
+surface_container_high = "#2B2930"
+
+outline = "#938F99"
+outline_variant = "#49454F"
+error = "#F2B8B5"
+
+[tokens.shapes]
+corner_none = 0.0
+corner_extra_small = 4.0
+corner_small = 8.0
+corner_medium = 16.0
+corner_large = 24.0
+corner_full = 999.0
+
+[tokens.state_layers]
+hover_opacity = 0.08
+focus_opacity = 0.12
+pressed_opacity = 0.12
+disabled_opacity = 0.38
