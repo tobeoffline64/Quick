@@ -340,6 +340,14 @@ impl Color {
         }
     }
 
+    pub const fn from_argb_u32(argb: u32) -> Self {
+        let a = ((argb >> 24) & 0xFF) as u8;
+        let r = ((argb >> 16) & 0xFF) as u8;
+        let g = ((argb >> 8) & 0xFF) as u8;
+        let b = (argb & 0xFF) as u8;
+        Self { r, g, b, a }
+    }
+
     pub fn to_argb_u32(self) -> u32 {
         ((self.a as u32) << 24)
             | ((self.r as u32) << 16)

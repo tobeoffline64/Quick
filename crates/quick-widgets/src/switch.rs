@@ -14,8 +14,10 @@ pub struct Switch {
     pub style: Style,
     pub checked: Signal<bool>,
     pub on_change: Option<Box<dyn FnMut(bool)>>,
-    is_hovered: bool,
-    is_pressed: bool,
+    pub is_disabled: bool,
+    pub is_hovered: bool,
+    pub is_pressed: bool,
+    pub is_focused: bool,
 }
 
 impl Switch {
@@ -30,13 +32,20 @@ impl Switch {
             style,
             checked,
             on_change: None,
+            is_disabled: false,
             is_hovered: false,
             is_pressed: false,
+            is_focused: false,
         }
     }
 
     pub fn on_change<F: FnMut(bool) + 'static>(mut self, handler: F) -> Self {
         self.on_change = Some(Box::new(handler));
+        self
+    }
+
+    pub fn with_disabled(mut self, disabled: bool) -> Self {
+        self.is_disabled = disabled;
         self
     }
 }
@@ -76,46 +85,69 @@ impl Widget for Switch {
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
         let is_on = self.checked.get();
 
-        // Colors
+        // 1. Resolve Colors
         let track_color = if is_on {
-            self.style.background_color.unwrap_or(Color::from_hex("#6750A4").unwrap())
+            self.style.background_color.unwrap_or_else(|| Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)))
         } else {
-            Color::from_hex("#36343B").unwrap()
+            Color::from_hex("#36343B").unwrap_or(Color::from_rgb(54, 52, 59))
         };
 
         let thumb_color = if is_on {
-            Color::from_hex("#FFFFFF").unwrap()
+            Color::from_hex("#FFFFFF").unwrap_or(Color::WHITE)
         } else {
-            Color::from_hex("#938F99").unwrap()
+            Color::from_hex("#938F99").unwrap_or(Color::from_rgb(147, 143, 153))
         };
 
-        // Draw track pill
+        // 2. Draw Track Pill
         let track_radius = BorderRadius::all(bounds.size.height / 2.0);
         canvas.fill_rounded_rect(bounds, track_radius, track_color);
 
         if !is_on {
-            canvas.stroke_rounded_rect(bounds, track_radius, Color::from_hex("#79747E").unwrap(), 2.0);
+            let outline_color = self.style.border_color.unwrap_or_else(|| Color::from_hex("#79747E").unwrap_or(Color::from_rgb(121, 116, 126)));
+            canvas.stroke_rounded_rect(bounds, track_radius, outline_color, 2.0);
         }
 
-        // Draw thumb circle
-        let thumb_size = if is_on {
-            bounds.size.height - 8.0
+        // 3. Compute Thumb Proportions
+        let thumb_size = if self.is_pressed {
+            28.0
+        } else if is_on {
+            24.0
         } else {
-            bounds.size.height - 14.0
+            16.0
         };
 
         let thumb_x = if is_on {
             bounds.origin.x + bounds.size.width - thumb_size - 4.0
         } else {
-            bounds.origin.x + 7.0
+            bounds.origin.x + 8.0 - (thumb_size - 16.0) / 2.0
         };
-
         let thumb_y = bounds.origin.y + (bounds.size.height - thumb_size) / 2.0;
         let thumb_rect = Rect::new(thumb_x, thumb_y, thumb_size, thumb_size);
+
+        // 4. Render State Layer Halo (Hover / Focus / Pressed)
+        if (self.is_hovered || self.is_pressed || self.is_focused) && !self.is_disabled {
+            let halo_size = 40.0;
+            let halo_x = thumb_x + (thumb_size - halo_size) / 2.0;
+            let halo_y = thumb_y + (thumb_size - halo_size) / 2.0;
+            let halo_rect = Rect::new(halo_x, halo_y, halo_size, halo_size);
+            let halo_alpha = if self.is_pressed || self.is_focused { 0.12 } else { 0.08 };
+            let halo_color = if is_on {
+                Color::from_rgba(255, 255, 255, (halo_alpha * 255.0) as u8)
+            } else {
+                Color::from_rgba(103, 80, 164, (halo_alpha * 255.0) as u8)
+            };
+            canvas.fill_rounded_rect(halo_rect, BorderRadius::all(halo_size / 2.0), halo_color);
+        }
+
+        // 5. Draw Thumb
         canvas.fill_rounded_rect(thumb_rect, BorderRadius::all(thumb_size / 2.0), thumb_color);
     }
 
     fn handle_event(&mut self, event: &Event, bounds: Rect) -> bool {
+        if self.is_disabled {
+            return false;
+        }
+
         if let Event::Pointer(PointerEvent { position, button, phase, .. }) = event {
             let inside = bounds.contains(*position);
             self.is_hovered = inside;
@@ -127,7 +159,7 @@ impl Widget for Switch {
                 }
                 PointerPhase::Up if self.is_pressed => {
                     self.is_pressed = false;
-                    if inside {
+                    if inside && *button == Some(PointerButton::Primary) {
                         let new_state = !self.checked.get();
                         self.checked.set(new_state);
                         if let Some(ref mut handler) = self.on_change {
@@ -188,4 +220,3 @@ mod tests {
         assert!(canvas.commands().len() >= 2);
     }
 }
-

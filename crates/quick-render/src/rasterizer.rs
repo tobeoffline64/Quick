@@ -1,5 +1,6 @@
 use crate::canvas::{Canvas, DrawCommand};
 use quick_core::geometry::{BorderRadius, Color, Insets, Point, Rect};
+use quick_style::theme::tokens::Shadow;
 
 pub struct SoftwareRasterizer;
 
@@ -54,6 +55,15 @@ impl SoftwareRasterizer {
                         radius.bottom_left * sx.max(sy),
                     );
                     Self::stroke_rounded_rect(buffer, width, height, map_rect(rect), scaled_rad, *color, *stroke_w * sx.max(sy), clip);
+                }
+                DrawCommand::DrawShadow { rect, radius, shadow } => {
+                    let scaled_rad = BorderRadius::new(
+                        radius.top_left * sx.max(sy),
+                        radius.top_right * sx.max(sy),
+                        radius.bottom_right * sx.max(sy),
+                        radius.bottom_left * sx.max(sy),
+                    );
+                    Self::draw_shadow(buffer, width, height, map_rect(rect), scaled_rad, *shadow, clip);
                 }
                 DrawCommand::DrawText { text, origin, color, font_size, .. } => {
                     let offset_origin = Point::new(origin.x * sx + tx, origin.y * sy + ty);
@@ -247,6 +257,84 @@ impl SoftwareRasterizer {
 
                 if in_outer && !in_inner {
                     Self::set_pixel(buffer, width, height, x, y, color, clip);
+                }
+            }
+        }
+    }
+
+    fn draw_shadow(
+        buffer: &mut [u32],
+        width: u32,
+        height: u32,
+        rect: Rect,
+        radius: BorderRadius,
+        shadow: Shadow,
+        clip: Rect,
+    ) {
+        if shadow.color.a == 0 {
+            return;
+        }
+
+        let offset_x = shadow.offset_x;
+        let offset_y = shadow.offset_y;
+        let spread = shadow.spread_radius;
+        let blur = shadow.blur_radius.max(0.5);
+
+        let shadow_rect = Rect::new(
+            rect.origin.x + offset_x - spread,
+            rect.origin.y + offset_y - spread,
+            (rect.size.width + spread * 2.0).max(0.0),
+            (rect.size.height + spread * 2.0).max(0.0),
+        );
+
+        let pad = blur * 2.5;
+        let min_x = (shadow_rect.min_x() - pad).max(clip.min_x()).max(0.0) as i32;
+        let min_y = (shadow_rect.min_y() - pad).max(clip.min_y()).max(0.0) as i32;
+        let max_x = (shadow_rect.max_x() + pad).min(clip.max_x()).min(width as f32) as i32;
+        let max_y = (shadow_rect.max_y() + pad).min(clip.max_y()).min(height as f32) as i32;
+
+        let center_x = shadow_rect.origin.x + shadow_rect.size.width / 2.0;
+        let center_y = shadow_rect.origin.y + shadow_rect.size.height / 2.0;
+        let half_w = shadow_rect.size.width / 2.0;
+        let half_h = shadow_rect.size.height / 2.0;
+        let r = radius.top_left.min(half_w).min(half_h);
+
+        let shadow_color = shadow.color;
+
+        for y in min_y..max_y {
+            let py = y as f32 + 0.5;
+            let dy = (py - center_y).abs() - (half_h - r);
+
+            for x in min_x..max_x {
+                let px = x as f32 + 0.5;
+                let dx = (px - center_x).abs() - (half_w - r);
+
+                let dist = if dx > 0.0 && dy > 0.0 {
+                    (dx * dx + dy * dy).sqrt() - r
+                } else {
+                    dx.max(dy) - r
+                };
+
+                let alpha_factor = if dist <= -blur {
+                    1.0
+                } else if dist >= blur {
+                    0.0
+                } else {
+                    let t = (dist + blur) / (2.0 * blur);
+                    (1.0 - t).clamp(0.0, 1.0)
+                };
+
+                if alpha_factor > 0.005 {
+                    let pixel_alpha = ((shadow_color.a as f32) * alpha_factor).round() as u8;
+                    if pixel_alpha > 0 {
+                        let pixel_color = Color::from_rgba(
+                            shadow_color.r,
+                            shadow_color.g,
+                            shadow_color.b,
+                            pixel_alpha,
+                        );
+                        Self::set_pixel(buffer, width, height, x, y, pixel_color, clip);
+                    }
                 }
             }
         }

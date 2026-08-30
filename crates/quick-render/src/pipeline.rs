@@ -105,6 +105,46 @@ impl RenderPipeline {
                     );
                     skia_canvas.draw_rrect(rrect, &paint);
                 }
+                DrawCommand::DrawShadow { rect, radius, shadow } => {
+                    use skia_safe::{BlurStyle, MaskFilter};
+                    if shadow.color.a > 0 {
+                        let mut paint = Paint::default();
+                        paint.set_style(PaintStyle::Fill);
+                        paint.set_anti_alias(true);
+                        paint.set_color4f(
+                            Color4f::new(
+                                shadow.color.r as f32 / 255.0,
+                                shadow.color.g as f32 / 255.0,
+                                shadow.color.b as f32 / 255.0,
+                                shadow.color.a as f32 / 255.0,
+                            ),
+                            None,
+                        );
+
+                        if shadow.blur_radius > 0.0 {
+                            let sigma = shadow.blur_radius * 0.57735 + 0.5;
+                            paint.set_mask_filter(MaskFilter::blur(BlurStyle::Normal, sigma, false));
+                        }
+
+                        let spread = shadow.spread_radius;
+                        let sk_rect = SkRect::from_xywh(
+                            rect.origin.x + shadow.offset_x - spread,
+                            rect.origin.y + shadow.offset_y - spread,
+                            rect.size.width + spread * 2.0,
+                            rect.size.height + spread * 2.0,
+                        );
+                        let rrect = RRect::new_rect_radii(
+                            sk_rect,
+                            &[
+                                skia_safe::Vector::new(radius.top_left, radius.top_left),
+                                skia_safe::Vector::new(radius.top_right, radius.top_right),
+                                skia_safe::Vector::new(radius.bottom_right, radius.bottom_right),
+                                skia_safe::Vector::new(radius.bottom_left, radius.bottom_left),
+                            ],
+                        );
+                        skia_canvas.draw_rrect(rrect, &paint);
+                    }
+                }
                 DrawCommand::DrawText { text, origin, color, font_size, font_family: _ } => {
                     let mut paint = Paint::default();
                     paint.set_style(PaintStyle::Fill);

@@ -13,9 +13,12 @@ pub struct Checkbox {
     pub classes: Vec<String>,
     pub style: Style,
     pub checked: Signal<bool>,
+    pub indeterminate: Option<Signal<bool>>,
     pub on_change: Option<Box<dyn FnMut(bool)>>,
-    is_hovered: bool,
-    is_pressed: bool,
+    pub is_disabled: bool,
+    pub is_hovered: bool,
+    pub is_pressed: bool,
+    pub is_focused: bool,
 }
 
 impl Checkbox {
@@ -29,10 +32,23 @@ impl Checkbox {
             classes: Vec::new(),
             style,
             checked,
+            indeterminate: None,
             on_change: None,
+            is_disabled: false,
             is_hovered: false,
             is_pressed: false,
+            is_focused: false,
         }
+    }
+
+    pub fn with_indeterminate(mut self, indeterminate: Signal<bool>) -> Self {
+        self.indeterminate = Some(indeterminate);
+        self
+    }
+
+    pub fn with_disabled(mut self, disabled: bool) -> Self {
+        self.is_disabled = disabled;
+        self
     }
 
     pub fn on_change<F: FnMut(bool) + 'static>(mut self, handler: F) -> Self {
@@ -75,14 +91,24 @@ impl Widget for Checkbox {
 
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
         let is_on = self.checked.get();
+        let is_indet = self.indeterminate.as_ref().map(|s| s.get()).unwrap_or(false);
+
         let box_size = 20.0;
         let box_x = bounds.origin.x + (bounds.size.width - box_size) / 2.0;
         let box_y = bounds.origin.y + (bounds.size.height - box_size) / 2.0;
         let box_rect = Rect::new(box_x, box_y, box_size, box_size);
-        let radius = BorderRadius::all(4.0);
+        let radius = self.style.border_radius.unwrap_or_else(|| BorderRadius::all(4.0));
 
-        if is_on {
-            let fill_color = self.style.background_color.unwrap_or(Color::from_hex("#6750A4").unwrap());
+        if is_indet {
+            let fill_color = self.style.background_color.unwrap_or_else(|| Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
+            canvas.fill_rounded_rect(box_rect, radius, fill_color);
+
+            let dash_y = box_y + box_size / 2.0;
+            let p_start = Point::new(box_x + 4.0, dash_y);
+            let p_end = Point::new(box_x + box_size - 4.0, dash_y);
+            canvas.draw_line(p_start, p_end, Color::WHITE, 2.0);
+        } else if is_on {
+            let fill_color = self.style.background_color.unwrap_or_else(|| Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
             canvas.fill_rounded_rect(box_rect, radius, fill_color);
 
             // Draw checkmark stroke
@@ -92,12 +118,16 @@ impl Widget for Checkbox {
             canvas.draw_line(p1, p2, Color::WHITE, 2.0);
             canvas.draw_line(p2, p3, Color::WHITE, 2.0);
         } else {
-            let border_color = self.style.border_color.unwrap_or(Color::from_hex("#79747E").unwrap());
+            let border_color = self.style.border_color.unwrap_or_else(|| Color::from_hex("#79747E").unwrap_or(Color::from_rgb(121, 116, 126)));
             canvas.stroke_rounded_rect(box_rect, radius, border_color, 2.0);
         }
     }
 
     fn handle_event(&mut self, event: &Event, bounds: Rect) -> bool {
+        if self.is_disabled {
+            return false;
+        }
+
         if let Event::Pointer(PointerEvent { position, button, phase, .. }) = event {
             let inside = bounds.contains(*position);
             self.is_hovered = inside;
@@ -109,7 +139,7 @@ impl Widget for Checkbox {
                 }
                 PointerPhase::Up if self.is_pressed => {
                     self.is_pressed = false;
-                    if inside {
+                    if inside && *button == Some(PointerButton::Primary) {
                         let new_state = !self.checked.get();
                         self.checked.set(new_state);
                         if let Some(ref mut handler) = self.on_change {
@@ -168,5 +198,16 @@ mod tests {
         cb.paint(&mut canvas, bounds);
         assert!(!canvas.commands().is_empty());
     }
-}
 
+    #[test]
+    fn test_checkbox_indeterminate() {
+        let is_checked = Signal::new(false);
+        let is_indet = Signal::new(true);
+        let cb = Checkbox::new(is_checked).with_indeterminate(is_indet);
+
+        let bounds = Rect::new(0.0, 0.0, 24.0, 24.0);
+        let mut canvas = Canvas::new();
+        cb.paint(&mut canvas, bounds);
+        assert_eq!(canvas.commands().len(), 2); // fill + dash line
+    }
+}

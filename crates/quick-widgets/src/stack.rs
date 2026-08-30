@@ -1,5 +1,5 @@
 use crate::container::Container;
-use quick_style::property::FlexDirection;
+use quick_style::property::{AlignItems, FlexDirection};
 
 pub struct VStack;
 
@@ -7,6 +7,7 @@ impl VStack {
     pub fn new() -> Container {
         let mut container = Container::new();
         container.style.flex_direction = Some(FlexDirection::Column);
+        container.style.align_items = Some(AlignItems::Stretch);
         container
     }
 }
@@ -17,6 +18,7 @@ impl HStack {
     pub fn new() -> Container {
         let mut container = Container::new();
         container.style.flex_direction = Some(FlexDirection::Row);
+        container.style.align_items = Some(AlignItems::Stretch);
         container
     }
 }

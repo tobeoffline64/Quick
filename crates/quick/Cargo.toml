@@ -22,3 +22,20 @@ thiserror = { workspace = true }
 default = ["mimalloc"]
 mimalloc = ["quick-core/mimalloc"]
 skia = ["quick-render/skia"]
+
+[[test]]
+name = "e2e_m3_theme"
+path = "../../tests/e2e_m3_theme.rs"
+
+[[test]]
+name = "e2e_m3_widgets"
+path = "../../tests/e2e_m3_widgets.rs"
+
+[[test]]
+name = "e2e_m3_markup"
+path = "../../tests/e2e_m3_markup.rs"
+
+[[test]]
+name = "e2e_m3_scenarios"
+path = "../../tests/e2e_m3_scenarios.rs"
+

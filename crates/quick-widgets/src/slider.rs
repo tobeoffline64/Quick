@@ -15,15 +15,17 @@ pub struct Slider {
     pub value: Signal<f32>,
     pub min: f32,
     pub max: f32,
+    pub steps: Option<u32>,
     pub on_change: Option<Box<dyn FnMut(f32)>>,
-    is_dragging: bool,
+    pub is_disabled: bool,
+    pub is_dragging: bool,
+    pub is_hovered: bool,
 }
 
 impl Slider {
     pub fn new(value: Signal<f32>, min: f32, max: f32) -> Self {
         let mut style = Style::default();
         style.height = Some(Dimension::Px(36.0));
-        style.width = Some(Dimension::Percent(100.0));
 
         Self {
             id: None,
@@ -32,9 +34,22 @@ impl Slider {
             value,
             min,
             max,
+            steps: None,
             on_change: None,
+            is_disabled: false,
             is_dragging: false,
+            is_hovered: false,
         }
+    }
+
+    pub fn with_steps(mut self, steps: Option<u32>) -> Self {
+        self.steps = steps;
+        self
+    }
+
+    pub fn with_disabled(mut self, disabled: bool) -> Self {
+        self.is_disabled = disabled;
+        self
     }
 
     pub fn on_change<F: FnMut(f32) + 'static>(mut self, handler: F) -> Self {
@@ -47,7 +62,24 @@ impl Slider {
         let track_left = bounds.origin.x + pad;
         let track_width = (bounds.size.width - pad * 2.0).max(1.0);
         let ratio = ((pos_x - track_left) / track_width).clamp(0.0, 1.0);
-        let new_val = self.min + ratio * (self.max - self.min);
+        let (min_val, max_val) = if self.min <= self.max {
+            (self.min, self.max)
+        } else {
+            (self.max, self.min)
+        };
+        let mut new_val = min_val + ratio * (max_val - min_val);
+
+        // Discrete step quantization
+        if let Some(steps) = self.steps {
+            if steps > 0 {
+                let step_size = (max_val - min_val) / steps as f32;
+                if step_size > 0.0 {
+                    new_val = min_val + ((new_val - min_val) / step_size).round() * step_size;
+                }
+            }
+        }
+
+        new_val = new_val.clamp(min_val, max_val);
         self.value.set(new_val);
         if let Some(ref mut handler) = self.on_change {
             handler(new_val);
@@ -85,6 +117,10 @@ impl Widget for Slider {
     }
 
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
+        if bounds.size.width <= 0.0 || bounds.size.height <= 0.0 {
+            return;
+        }
+
         let (min_val, max_val) = if self.min <= self.max {
             (self.min, self.max)
         } else {
@@ -93,7 +129,7 @@ impl Widget for Slider {
         let raw_val = self.value.get();
         let val = if raw_val.is_nan() { min_val } else { raw_val.clamp(min_val, max_val) };
         let ratio = if (max_val - min_val).abs() > 0.001 {
-            (val - min_val) / (max_val - min_val)
+            ((val - min_val) / (max_val - min_val)).clamp(0.0, 1.0)
         } else {
             0.0
         };
@@ -101,35 +137,53 @@ impl Widget for Slider {
         let pad = 12.0;
         let track_h = 8.0;
         let track_y = bounds.origin.y + (bounds.size.height - track_h) / 2.0;
-        let track_w = bounds.size.width - pad * 2.0;
+        let track_w = (bounds.size.width - pad * 2.0).max(0.0);
         let track_radius = BorderRadius::all(track_h / 2.0);
 
-        // Inactive track (right side)
+        // 1. Inactive track (full width background)
         let inactive_rect = Rect::new(bounds.origin.x + pad, track_y, track_w, track_h);
-        canvas.fill_rounded_rect(inactive_rect, track_radius, Color::from_hex("#36343B").unwrap());
+        canvas.fill_rounded_rect(inactive_rect, track_radius, Color::from_hex("#36343B").unwrap_or(Color::from_rgb(54, 52, 59)));
 
-        // Active track (left side)
+        // 2. Active track (left side up to thumb)
         let active_w = track_w * ratio;
         if active_w > 0.0 {
             let active_rect = Rect::new(bounds.origin.x + pad, track_y, active_w, track_h);
-            let active_color = self.style.background_color.unwrap_or(Color::from_hex("#6750A4").unwrap());
+            let active_color = self.style.background_color.unwrap_or_else(|| Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
             canvas.fill_rounded_rect(active_rect, track_radius, active_color);
         }
 
-        // Thumb
+        // 3. Thumb position
         let thumb_r = 10.0;
         let thumb_x = bounds.origin.x + pad + active_w;
         let thumb_y = bounds.origin.y + bounds.size.height / 2.0;
         let thumb_rect = Rect::new(thumb_x - thumb_r, thumb_y - thumb_r, thumb_r * 2.0, thumb_r * 2.0);
-        let thumb_color = Color::from_hex("#D0BCFF").unwrap();
+
+        // 4. State Layer Halo (Hover / Dragged)
+        if (self.is_dragging || self.is_hovered) && !self.is_disabled {
+            let halo_size = 40.0;
+            let halo_rect = Rect::new(thumb_x - halo_size / 2.0, thumb_y - halo_size / 2.0, halo_size, halo_size);
+            let halo_alpha = if self.is_dragging { 0.16 } else { 0.08 };
+            let halo_color = Color::from_rgba(103, 80, 164, (halo_alpha * 255.0) as u8);
+            canvas.fill_rounded_rect(halo_rect, BorderRadius::all(halo_size / 2.0), halo_color);
+        }
+
+        // 5. Thumb Circle
+        let thumb_color = Color::from_hex("#D0BCFF").unwrap_or(Color::from_rgb(208, 188, 255));
         canvas.fill_rounded_rect(thumb_rect, BorderRadius::all(thumb_r), thumb_color);
     }
 
     fn handle_event(&mut self, event: &Event, bounds: Rect) -> bool {
+        if self.is_disabled {
+            return false;
+        }
+
         match event {
             Event::Pointer(PointerEvent { position, button, phase, .. }) => {
+                let inside = bounds.contains(*position);
+                self.is_hovered = inside;
+
                 match phase {
-                    PointerPhase::Down if bounds.contains(*position) && *button == Some(PointerButton::Primary) => {
+                    PointerPhase::Down if inside && *button == Some(PointerButton::Primary) => {
                         self.is_dragging = true;
                         self.update_from_pos(position.x, bounds);
                         true
@@ -172,7 +226,6 @@ mod tests {
             .on_change(move |v| *cb_cl.borrow_mut() = v);
 
         let bounds = Rect::new(0.0, 0.0, 124.0, 36.0);
-        // Track left = 0 + 12 = 12. Track width = 124 - 24 = 100.
 
         // Down at 50% (x = 62.0)
         let down = Event::Pointer(PointerEvent {
@@ -209,5 +262,21 @@ mod tests {
         slider.paint(&mut canvas, bounds);
         assert!(canvas.commands().len() >= 3);
     }
-}
 
+    #[test]
+    fn test_slider_discrete_steps() {
+        let val_sig = Signal::new(0.0);
+        let mut slider = Slider::new(val_sig.clone(), 0.0, 100.0).with_steps(Some(4));
+        let bounds = Rect::new(0.0, 0.0, 124.0, 36.0);
+
+        // Drag to ~30% -> snaps to 25% (step 1 of 4)
+        let down = Event::Pointer(PointerEvent {
+            position: Point::new(42.0, 18.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        assert!(slider.handle_event(&down, bounds));
+        assert_eq!(val_sig.get(), 25.0);
+    }
+}

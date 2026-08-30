@@ -1,5 +1,6 @@
 use bumpalo::Bump;
 use quick_core::geometry::{BorderRadius, Color, Point, Rect};
+use quick_style::theme::tokens::{ElevationTokens, Shadow};
 
 #[derive(Debug, Clone)]
 pub enum DrawCommand {
@@ -8,6 +9,11 @@ pub enum DrawCommand {
     StrokeRect(Rect, Color, f32),
     FillRoundedRect(Rect, BorderRadius, Color),
     StrokeRoundedRect(Rect, BorderRadius, Color, f32),
+    DrawShadow {
+        rect: Rect,
+        radius: BorderRadius,
+        shadow: Shadow,
+    },
     DrawText {
         text: String,
         origin: Point,
@@ -68,6 +74,48 @@ impl Canvas {
 
     pub fn stroke_rounded_rect(&mut self, rect: Rect, radius: BorderRadius, color: Color, width: f32) {
         self.commands.push(DrawCommand::StrokeRoundedRect(rect, radius, color, width));
+    }
+
+    /// Records a single box shadow layer
+    pub fn draw_shadow(&mut self, rect: Rect, radius: BorderRadius, shadow: Shadow) {
+        self.commands.push(DrawCommand::DrawShadow { rect, radius, shadow });
+    }
+
+    /// Records dual-pass elevation shadow (key + ambient)
+    pub fn draw_elevation_shadow(
+        &mut self,
+        rect: Rect,
+        radius: BorderRadius,
+        level: u8,
+        elevation_tokens: &ElevationTokens,
+    ) {
+        if level == 0 {
+            return;
+        }
+        let elev = elevation_tokens.get(level);
+        if let Some(ambient) = elev.ambient_shadow {
+            self.draw_shadow(rect, radius, ambient);
+        }
+        if let Some(key) = elev.key_shadow {
+            self.draw_shadow(rect, radius, key);
+        }
+    }
+
+    /// Helper to fill rounded rect with dynamic surface tint overlay
+    pub fn fill_surface_tint(
+        &mut self,
+        rect: Rect,
+        radius: BorderRadius,
+        base_color: Color,
+        tint_color: Color,
+        opacity: f32,
+    ) {
+        let opacity_clamped = if opacity.is_nan() { 0.0 } else { opacity.clamp(0.0, 1.0) };
+        let r = (base_color.r as f32 * (1.0 - opacity_clamped) + tint_color.r as f32 * opacity_clamped).round() as u8;
+        let g = (base_color.g as f32 * (1.0 - opacity_clamped) + tint_color.g as f32 * opacity_clamped).round() as u8;
+        let b = (base_color.b as f32 * (1.0 - opacity_clamped) + tint_color.b as f32 * opacity_clamped).round() as u8;
+        let final_color = Color::from_rgba(r, g, b, base_color.a);
+        self.fill_rounded_rect(rect, radius, final_color);
     }
 
     pub fn draw_text(
@@ -144,5 +192,29 @@ mod tests {
 
         canvas.reset();
         assert_eq!(canvas.commands().len(), 0);
+    }
+
+    #[test]
+    fn test_canvas_elevation_shadow_and_surface_tint() {
+        let mut canvas = Canvas::new();
+        let tokens = ElevationTokens::default();
+
+        // Level 0 should not produce shadow commands
+        canvas.draw_elevation_shadow(Rect::new(0.0, 0.0, 100.0, 100.0), BorderRadius::all(16.0), 0, &tokens);
+        assert_eq!(canvas.commands().len(), 0);
+
+        // Level 1 produces 2 shadow commands (ambient + key)
+        canvas.draw_elevation_shadow(Rect::new(0.0, 0.0, 100.0, 100.0), BorderRadius::all(16.0), 1, &tokens);
+        assert_eq!(canvas.commands().len(), 2);
+
+        // Fill surface tint
+        canvas.fill_surface_tint(
+            Rect::new(0.0, 0.0, 100.0, 100.0),
+            BorderRadius::all(16.0),
+            Color::from_rgb(30, 30, 30),
+            Color::from_rgb(103, 80, 164),
+            0.08,
+        );
+        assert_eq!(canvas.commands().len(), 3);
     }
 }
