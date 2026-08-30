@@ -1,0 +1,114 @@
+<VStack id="app-root" class="surface" style="padding: 24px; gap: 16px; background: #11111b; width: 800px; height: 600px;">
+    <Style>
+        Text.header-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #89b4fa;
+        }
+        Text.header-subtitle {
+            font-size: 13px;
+            color: #a6adc8;
+        }
+        Text.hud-label {
+            font-size: 12px;
+            color: #9399b2;
+            font-weight: bold;
+        }
+        Text.hud-value {
+            font-size: 20px;
+            color: #a6e3a1;
+            font-weight: bold;
+        }
+        Container.card {
+            background: #181825;
+            border-radius: 12px;
+            border-color: #313244;
+            border-width: 1px;
+            padding: 16px;
+            gap: 8px;
+        }
+        Button.btn-action {
+            background: #313244;
+            color: #cdd6f4;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        Button.btn-action:hover {
+            background: #45475a;
+            color: #ffffff;
+        }
+        Button.btn-accent {
+            background: #89b4fa;
+            color: #11111b;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        Button.btn-accent:hover {
+            background: #b4befe;
+        }
+    </Style>
+
+    <!-- Header Banner -->
+    <HStack style="justify-content: space-between; align-items: center;">
+        <VStack style="gap: 4px;">
+            <Text class="header-title" text="⚡ Quick Framework — Device Telemetry" />
+            <Text class="header-subtitle" text="Linux Wayland Native • 100% Pure Rust • Skia 2D Pipeline" />
+        </VStack>
+        <Button id="btn-refresh" class="btn-accent" text="⚡ Run Benchmark" onclick="run_bench" />
+    </HStack>
+
+    <!-- Live Performance HUD Cards -->
+    <HStack style="gap: 16px;">
+        <!-- FPS Card -->
+        <Container class="card" style="width: 220px;">
+            <Text class="hud-label" text="TARGET REFRESH RATE" />
+            <Text id="txt-fps" class="hud-value" text="$hud_fps" />
+        </Container>
+
+        <!-- Frame Time Card -->
+        <Container class="card" style="width: 220px;">
+            <Text class="hud-label" text="FRAME RENDER TIME" />
+            <Text id="txt-latency" class="hud-value" text="$hud_latency" />
+        </Container>
+
+        <!-- Memory RSS Card -->
+        <Container class="card" style="width: 220px;">
+            <Text class="hud-label" text="MEMORY FOOTPRINT (RSS)" />
+            <Text id="txt-memory" class="hud-value" text="$hud_memory" />
+        </Container>
+    </HStack>
+
+    <!-- Device Controls & Interactive Section -->
+    <HStack style="gap: 16px;">
+        <Container class="card" style="width: 360px; gap: 12px;">
+            <Text style="font-size: 15px; font-weight: bold; color: #cdd6f4;" text="🎮 Interactive Device Controls" />
+            <Text style="font-size: 13px; color: #bac2de;" text="$counter_status" />
+            
+            <HStack style="gap: 8px; margin: 8px 0px;">
+                <Button id="btn-dec" class="btn-action" text="➖ Decrement" onclick="decrement" />
+                <Button id="btn-inc" class="btn-accent" text="➕ Increment" onclick="increment" />
+                <Button id="btn-stress" class="btn-action" text="🔥 1,000 Updates" onclick="stress_test" />
+            </HStack>
+        </Container>
+
+        <Container class="card" style="width: 360px; gap: 12px;">
+            <Text style="font-size: 15px; font-weight: bold; color: #cdd6f4;" text="⚙️ Hardware Mode" />
+            <Text style="font-size: 13px; color: #bac2de;" text="Mode: Linux Wayland Kiosk EGL DirectContext" />
+            
+            <HStack style="gap: 8px; margin: 8px 0px;">
+                <Button id="btn-mode-eco" class="btn-action" text="🌱 Eco" onclick="set_mode_eco" />
+                <Button id="btn-mode-perf" class="btn-accent" text="🚀 Max Perf" onclick="set_mode_perf" />
+            </HStack>
+        </Container>
+    </HStack>
+
+    <!-- Status Footer -->
+    <HStack style="justify-content: space-between; margin: 12px 0px;">
+        <Text style="font-size: 12px; color: #6c7086;" text="Quick v0.1.0 • Pure Rust Zero-Copy AST" />
+        <Text style="font-size: 12px; color: #6c7086;" text="Wayland Damage Region: Active (0% CPU at Idle)" />
+    </HStack>
+</VStack>
