@@ -1,0 +1,75 @@
+<!-- Quick Native Application: Hello World Starter Project -->
+<VStack id="app-root" class="surface" style="padding: 40px; gap: 20px; align-items: center; justify-content: center; background: #0d1117; width: 680px; height: 520px;">
+    
+    <Style>
+        Container.card {
+            background: #161b22;
+            border-radius: 16px;
+            border-color: #30363d;
+            border-width: 1px;
+            padding: 36px;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            width: 520px;
+        }
+        Text.pill {
+            font-size: 11px;
+            font-weight: bold;
+            color: #58a6ff;
+            background: #1f2937;
+            padding: 4px 14px;
+            border-radius: 99px;
+        }
+        Text.title {
+            font-size: 30px;
+            font-weight: bold;
+            color: #f0f6fc;
+        }
+        Text.greeting {
+            font-size: 16px;
+            color: #7ee787;
+            font-weight: bold;
+            text-align: center;
+        }
+        Text.description {
+            font-size: 13px;
+            color: #8b949e;
+            text-align: center;
+        }
+        Button.btn-primary {
+            background: #238636;
+            color: #ffffff;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        Button.btn-primary:hover {
+            background: #2ea043;
+        }
+        Button.btn-secondary {
+            background: #21262d;
+            color: #c9d1d9;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        Button.btn-secondary:hover {
+            background: #30363d;
+        }
+    </Style>
+
+    <Container class="card">
+        <Text class="pill" text="⚡ 100% PURE RUST • SKIA 2D CANVAS • WAYLAND" />
+        <Text class="title" text="Hello, Quick World!" />
+        <Text id="greeting-box" class="greeting" text="$greeting" />
+        <Text class="description" text="$description" />
+
+        <HStack style="gap: 12px; margin: 16px 0px 0px 0px;">
+            <Button id="btn-interact" class="btn-primary" text="✨ Click Me!" onclick="on_click" />
+            <Button id="btn-reset" class="btn-secondary" text="🔄 Reset" onclick="on_reset" />
+        </HStack>
+    </Container>
+
+</VStack>
