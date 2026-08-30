@@ -4,7 +4,7 @@ use quick_core::event::Event;
 use quick_core::geometry::{BorderRadius, Color, Insets, Point, Rect};
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
-use quick_style::property::{Dimension, FlexDirection, Style};
+use quick_style::property::{FlexDirection, Style};
 use taffy::prelude::NodeId;
 use taffy::TaffyError;
 

@@ -1,6 +1,6 @@
 use crate::widget::Widget;
 use quick_core::event::{Event, PointerButton, PointerEvent, PointerPhase};
-use quick_core::geometry::{BorderRadius, Color, Point, Rect, Size};
+use quick_core::geometry::{BorderRadius, Color, Rect};
 use quick_core::signals::Signal;
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;

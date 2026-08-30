@@ -1,6 +1,6 @@
 use crate::widget::Widget;
 use quick_core::event::{Event, PointerButton, PointerEvent, PointerPhase};
-use quick_core::geometry::{BorderRadius, Color, Point, Rect};
+use quick_core::geometry::{BorderRadius, Color, Rect};
 use quick_core::signals::Signal;
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
@@ -128,7 +128,7 @@ impl Widget for Slider {
                         self.update_from_pos(position.x, bounds);
                         true
                     }
-                    PointerPhase::Move if self.is_dragging => {
+                    PointerPhase::Moved if self.is_dragging => {
                         self.update_from_pos(position.x, bounds);
                         true
                     }
