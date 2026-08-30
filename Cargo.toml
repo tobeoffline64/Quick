@@ -28,9 +28,9 @@ serde_json = "1.0"
 toml = "0.8"
 quick-xml = { version = "0.37", features = ["serialize"] }
 taffy = "0.6"
-winit = { version = "0.30", features = ["rwh_06"] }
+winit = { version = "0.30", features = ["rwh_06", "wayland", "x11"] }
 raw-window-handle = "0.6"
-softbuffer = { version = "0.4", default-features = false, features = ["x11", "wayland"] }
+softbuffer = { version = "0.4", default-features = false, features = ["wayland", "x11rb"] }
 skia-safe = { version = "0.80", default-features = false, features = ["gl", "textlayout"] }
 smallvec = { version = "1.13", features = ["serde"] }
 slotmap = { version = "1.0", features = ["serde"] }
