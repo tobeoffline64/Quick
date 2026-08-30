@@ -1,6 +1,7 @@
 use quick_core::geometry::{Color, Rect, Size};
 use quick_layout::engine::LayoutEngine;
 use quick_markup::builder::{build_ui_tree, DataContext};
+use quick_markup::quick_parser::{parse_quick, parse_quick_file};
 use quick_markup::toml_parser::parse_toml;
 use quick_markup::xml_parser::parse_xml;
 use quick_render::canvas::Canvas;
@@ -8,6 +9,7 @@ use quick_render::damage::DamageTracker;
 use quick_style::rule::StyleSheet;
 use quick_widgets::widget::Widget;
 use quick_window::window::WindowOptions;
+use std::path::Path;
 
 pub struct App {
     window_options: WindowOptions,
@@ -33,6 +35,24 @@ impl App {
     pub fn with_root(mut self, root: impl Widget + 'static) -> Self {
         self.root = Some(Box::new(root));
         self
+    }
+
+    /// Load and instantiate UI from a `.quick` file content string.
+    pub fn from_quick(mut self, quick_content: &str, data_ctx: &mut DataContext) -> Result<Self, String> {
+        let doc = parse_quick(quick_content)?;
+        let (root_widget, stylesheet) = build_ui_tree(&doc, data_ctx);
+        self.root = Some(root_widget);
+        self.stylesheet = stylesheet;
+        Ok(self)
+    }
+
+    /// Load and instantiate UI directly from a `.quick` file path on disk.
+    pub fn from_quick_file(mut self, path: impl AsRef<Path>, data_ctx: &mut DataContext) -> Result<Self, String> {
+        let doc = parse_quick_file(path)?;
+        let (root_widget, stylesheet) = build_ui_tree(&doc, data_ctx);
+        self.root = Some(root_widget);
+        self.stylesheet = stylesheet;
+        Ok(self)
     }
 
     pub fn from_xml(mut self, xml: &str, data_ctx: &mut DataContext) -> Result<Self, String> {

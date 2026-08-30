@@ -1,0 +1,16 @@
+[package]
+name = "hello_world"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+quick = { path = "../../crates/quick" }
+quick-core = { path = "../../crates/quick-core" }
+quick-markup = { path = "../../crates/quick-markup" }
+quick-style = { path = "../../crates/quick-style" }
+quick-widgets = { path = "../../crates/quick-widgets" }
+quick-window = { path = "../../crates/quick-window" }
+log = { workspace = true }
+env_logger = { workspace = true }
