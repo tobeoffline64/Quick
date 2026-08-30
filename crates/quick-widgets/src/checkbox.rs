@@ -127,3 +127,46 @@ impl Widget for Checkbox {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_checkbox_toggle_and_event() {
+        let is_checked = Signal::new(false);
+        let changed = Rc::new(RefCell::new(false));
+        let changed_cl = changed.clone();
+
+        let mut cb = Checkbox::new(is_checked.clone())
+            .on_change(move |v| *changed_cl.borrow_mut() = v);
+
+        let bounds = Rect::new(0.0, 0.0, 24.0, 24.0);
+
+        let down = Event::Pointer(PointerEvent {
+            position: Point::new(12.0, 12.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        assert!(cb.handle_event(&down, bounds));
+
+        let up = Event::Pointer(PointerEvent {
+            position: Point::new(12.0, 12.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Up,
+            modifiers: Default::default(),
+        });
+        assert!(cb.handle_event(&up, bounds));
+
+        assert!(is_checked.get());
+        assert!(*changed.borrow());
+
+        let mut canvas = Canvas::new();
+        cb.paint(&mut canvas, bounds);
+        assert!(!canvas.commands().is_empty());
+    }
+}
+

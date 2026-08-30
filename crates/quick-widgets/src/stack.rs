@@ -20,3 +20,19 @@ impl HStack {
         container
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quick_style::property::FlexDirection;
+
+    #[test]
+    fn test_stack_directions() {
+        let vstack = VStack::new();
+        assert_eq!(vstack.style.flex_direction, Some(FlexDirection::Column));
+
+        let hstack = HStack::new();
+        assert_eq!(hstack.style.flex_direction, Some(FlexDirection::Row));
+    }
+}
+

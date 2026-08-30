@@ -251,10 +251,53 @@ impl Color {
             "green" => return Ok(Self::GREEN),
             "blue" => return Ok(Self::BLUE),
             "gray" | "grey" => return Ok(Self::from_rgb(128, 128, 128)),
+            "lightgray" | "lightgrey" => return Ok(Self::from_rgb(211, 211, 211)),
+            "darkgray" | "darkgrey" => return Ok(Self::from_rgb(169, 169, 169)),
             "yellow" => return Ok(Self::from_rgb(255, 255, 0)),
             "cyan" => return Ok(Self::from_rgb(0, 255, 255)),
             "magenta" => return Ok(Self::from_rgb(255, 0, 255)),
+            "orange" => return Ok(Self::from_rgb(255, 165, 0)),
+            "purple" => return Ok(Self::from_rgb(128, 0, 128)),
+            "pink" => return Ok(Self::from_rgb(255, 192, 203)),
+            "brown" => return Ok(Self::from_rgb(165, 42, 42)),
+            "navy" => return Ok(Self::from_rgb(0, 0, 128)),
+            "teal" => return Ok(Self::from_rgb(0, 128, 128)),
+            "olive" => return Ok(Self::from_rgb(128, 128, 0)),
+            "maroon" => return Ok(Self::from_rgb(128, 0, 0)),
+            "silver" => return Ok(Self::from_rgb(192, 192, 192)),
+            "gold" => return Ok(Self::from_rgb(255, 215, 0)),
+            "lime" => return Ok(Self::from_rgb(0, 255, 0)),
+            "indigo" => return Ok(Self::from_rgb(75, 0, 130)),
+            "violet" => return Ok(Self::from_rgb(238, 130, 238)),
             _ => {}
+        }
+
+        // Handle rgb(r, g, b) and rgba(r, g, b, a)
+        if let Some(rgb_args) = trimmed.strip_prefix("rgb(").and_then(|s| s.strip_suffix(')')) {
+            let parts: Vec<&str> = rgb_args.split(',').map(|s| s.trim()).collect();
+            if parts.len() == 3 {
+                let r = parts[0].parse::<u8>().map_err(|e| e.to_string())?;
+                let g = parts[1].parse::<u8>().map_err(|e| e.to_string())?;
+                let b = parts[2].parse::<u8>().map_err(|e| e.to_string())?;
+                return Ok(Self::from_rgb(r, g, b));
+            }
+        } else if let Some(rgba_args) = trimmed.strip_prefix("rgba(").and_then(|s| s.strip_suffix(')')) {
+            let parts: Vec<&str> = rgba_args.split(',').map(|s| s.trim()).collect();
+            if parts.len() == 4 {
+                let r = parts[0].parse::<u8>().map_err(|e| e.to_string())?;
+                let g = parts[1].parse::<u8>().map_err(|e| e.to_string())?;
+                let b = parts[2].parse::<u8>().map_err(|e| e.to_string())?;
+                let a = if let Ok(f) = parts[3].parse::<f32>() {
+                    if f <= 1.0 {
+                        (f * 255.0).round() as u8
+                    } else {
+                        f.min(255.0) as u8
+                    }
+                } else {
+                    parts[3].parse::<u8>().map_err(|e| e.to_string())?
+                };
+                return Ok(Self::from_rgba(r, g, b, a));
+            }
         }
 
         let hex = trimmed.trim_start_matches('#');
@@ -411,6 +454,15 @@ mod tests {
 
         let transparent = Color::from_hex("transparent").unwrap();
         assert_eq!(transparent, Color::TRANSPARENT);
+
+        let rgb_red = Color::from_hex("rgb(255, 0, 0)").unwrap();
+        assert_eq!(rgb_red, Color::from_rgb(255, 0, 0));
+
+        let rgba_green = Color::from_hex("rgba(0, 255, 0, 0.5)").unwrap();
+        assert_eq!(rgba_green, Color::from_rgba(0, 255, 0, 128));
+
+        let orange = Color::from_hex("orange").unwrap();
+        assert_eq!(orange, Color::from_rgb(255, 165, 0));
 
         assert!(Color::from_hex("invalid_color_123").is_err());
     }

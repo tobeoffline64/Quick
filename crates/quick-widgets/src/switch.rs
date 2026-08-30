@@ -145,3 +145,47 @@ impl Widget for Switch {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quick_core::geometry::Point;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_switch_toggle_and_paint() {
+        let is_on = Signal::new(false);
+        let changed = Rc::new(RefCell::new(false));
+        let changed_cl = changed.clone();
+
+        let mut switch = Switch::new(is_on.clone())
+            .on_change(move |v| *changed_cl.borrow_mut() = v);
+
+        let bounds = Rect::new(0.0, 0.0, 52.0, 32.0);
+
+        let down = Event::Pointer(PointerEvent {
+            position: Point::new(26.0, 16.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        assert!(switch.handle_event(&down, bounds));
+
+        let up = Event::Pointer(PointerEvent {
+            position: Point::new(26.0, 16.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Up,
+            modifiers: Default::default(),
+        });
+        assert!(switch.handle_event(&up, bounds));
+
+        assert!(is_on.get());
+        assert!(*changed.borrow());
+
+        let mut canvas = Canvas::new();
+        switch.paint(&mut canvas, bounds);
+        assert!(canvas.commands().len() >= 2);
+    }
+}
+

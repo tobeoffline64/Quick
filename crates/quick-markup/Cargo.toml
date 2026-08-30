@@ -20,3 +20,4 @@ simdutf8 = { workspace = true }
 
 [dev-dependencies]
 quick-layout = { path = "../quick-layout" }
+quick-render = { path = "../quick-render" }

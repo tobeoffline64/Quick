@@ -98,11 +98,14 @@ impl<T: 'static + Clone> Signal<T> {
         *self.value.borrow_mut() = new_val;
         let effects = GRAPH.with(|g| g.borrow_mut().notify(self.id));
         for (sub, effect) in effects {
-            CURRENT_OBSERVER.with(|o| {
-                let prev = o.replace(Some(sub));
-                effect();
-                o.replace(prev);
-            });
+            let is_active = GRAPH.with(|g| g.borrow().effects.contains_key(&sub));
+            if is_active {
+                CURRENT_OBSERVER.with(|o| {
+                    let prev = o.replace(Some(sub));
+                    effect();
+                    o.replace(prev);
+                });
+            }
         }
     }
 
@@ -111,11 +114,14 @@ impl<T: 'static + Clone> Signal<T> {
         f(&mut self.value.borrow_mut());
         let effects = GRAPH.with(|g| g.borrow_mut().notify(self.id));
         for (sub, effect) in effects {
-            CURRENT_OBSERVER.with(|o| {
-                let prev = o.replace(Some(sub));
-                effect();
-                o.replace(prev);
-            });
+            let is_active = GRAPH.with(|g| g.borrow().effects.contains_key(&sub));
+            if is_active {
+                CURRENT_OBSERVER.with(|o| {
+                    let prev = o.replace(Some(sub));
+                    effect();
+                    o.replace(prev);
+                });
+            }
         }
     }
 }
@@ -143,6 +149,18 @@ pub fn create_effect<F: Fn() + 'static>(effect_fn: F) -> NodeId {
     });
 
     id
+}
+
+/// Disposes a reactive effect, preventing it from running on future signal updates.
+pub fn dispose_effect(id: NodeId) {
+    GRAPH.with(|g| {
+        let mut graph = g.borrow_mut();
+        graph.effects.remove(&id);
+        for subs in graph.subscribers.values_mut() {
+            subs.remove(&id);
+        }
+        graph.pending_effects.remove(&id);
+    });
 }
 
 /// Creates a computed / derived value that automatically updates when its dependencies update.
@@ -180,11 +198,14 @@ pub fn batch<R, F: FnOnce() -> R>(f: F) -> R {
         }
     });
     for (sub, effect) in to_run {
-        CURRENT_OBSERVER.with(|o| {
-            let prev = o.replace(Some(sub));
-            effect();
-            o.replace(prev);
-        });
+        let is_active = GRAPH.with(|g| g.borrow().effects.contains_key(&sub));
+        if is_active {
+            CURRENT_OBSERVER.with(|o| {
+                let prev = o.replace(Some(sub));
+                effect();
+                o.replace(prev);
+            });
+        }
     }
     res
 }
@@ -313,5 +334,129 @@ mod tests {
         assert_eq!(s4.get(), "Value: 12");
         root.set(5);
         assert_eq!(s4.get(), "Value: 20");
+    }
+
+    #[test]
+    fn test_dispose_effect() {
+        let count = Signal::new(1);
+        let run_count = Rc::new(RefCell::new(0));
+
+        let c_cl = count.clone();
+        let rc_cl = run_count.clone();
+        let effect_id = create_effect(move || {
+            let _ = c_cl.get();
+            *rc_cl.borrow_mut() += 1;
+        });
+
+        assert_eq!(*run_count.borrow(), 1);
+
+        count.set(2);
+        assert_eq!(*run_count.borrow(), 2);
+
+        dispose_effect(effect_id);
+
+        count.set(3);
+        // Effect should not run after disposal
+        assert_eq!(*run_count.borrow(), 2);
+    }
+
+    #[test]
+    fn test_diamond_computed_signals() {
+        // A -> B = A * 2, A -> C = A + 10, D = B + C
+        let a = Signal::new(1);
+        let a1 = a.clone();
+        let a2 = a.clone();
+
+        let b = create_computed(move || a1.get() * 2);
+        let c = create_computed(move || a2.get() + 10);
+
+        let b_cl = b.clone();
+        let c_cl = c.clone();
+        let d = create_computed(move || b_cl.get() + c_cl.get());
+
+        // Initial: a=1 => b=2, c=11 => d=13
+        assert_eq!(d.get(), 13);
+
+        // Update a=5 => b=10, c=15 => d=25
+        a.set(5);
+        assert_eq!(d.get(), 25);
+    }
+
+    #[test]
+    fn test_cascading_effect_disposal() {
+        let trigger = Signal::new(0);
+        let b_ran = Rc::new(RefCell::new(0));
+
+        let b_id_holder: Rc<RefCell<Option<NodeId>>> = Rc::new(RefCell::new(None));
+        let b_id_for_a = b_id_holder.clone();
+
+        let trig_a = trigger.clone();
+        create_effect(move || {
+            let val = trig_a.get();
+            if val > 0 {
+                if let Some(b_id) = *b_id_for_a.borrow() {
+                    dispose_effect(b_id);
+                }
+            }
+        });
+
+        let trig_b = trigger.clone();
+        let b_ran_cl = b_ran.clone();
+        let b_id = create_effect(move || {
+            let _ = trig_b.get();
+            *b_ran_cl.borrow_mut() += 1;
+        });
+        *b_id_holder.borrow_mut() = Some(b_id);
+
+        let initial_runs = *b_ran.borrow();
+        assert_eq!(initial_runs, 1);
+
+        // Update trigger -> effect A disposes effect B
+        trigger.set(1);
+        let runs_after_set1 = *b_ran.borrow();
+
+        // Subsequent update -> effect B is disposed and must not run
+        trigger.set(2);
+        assert_eq!(*b_ran.borrow(), runs_after_set1);
+    }
+
+    #[test]
+    fn test_deep_chained_computed_stress() {
+        let root = Signal::new(1);
+        let mut prev = root.clone();
+
+        for _ in 0..50 {
+            let p_cl = prev.clone();
+            prev = create_computed(move || p_cl.get() + 1);
+        }
+
+        assert_eq!(prev.get(), 51);
+
+        root.set(10);
+        assert_eq!(prev.get(), 60);
+    }
+
+    #[test]
+    fn test_high_volume_signal_batching_stress() {
+        let sig = Signal::new(0);
+        let run_count = Rc::new(RefCell::new(0));
+
+        let s_cl = sig.clone();
+        let rc_cl = run_count.clone();
+        create_effect(move || {
+            let _ = s_cl.get();
+            *rc_cl.borrow_mut() += 1;
+        });
+
+        assert_eq!(*run_count.borrow(), 1);
+
+        batch(|| {
+            for i in 1..=5000 {
+                sig.set(i);
+            }
+        });
+
+        assert_eq!(sig.get(), 5000);
+        assert_eq!(*run_count.borrow(), 2);
     }
 }

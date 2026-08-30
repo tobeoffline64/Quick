@@ -63,3 +63,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_examples_hello_world_lifecycle() {
+        let click_count = Signal::new(0);
+        let count_sig = click_count.clone();
+
+        let greeting = create_computed(move || {
+            let n = count_sig.get();
+            if n == 0 {
+                "Welcome to the fastest native UI framework on Linux!".to_string()
+            } else {
+                format!("🎉 You clicked the button {} times! (Zero-latency reactivity)", n)
+            }
+        });
+
+        let mut data_ctx = DataContext::new();
+        data_ctx.bind_signal("greeting", greeting.clone());
+
+        let inc_count = click_count.clone();
+        let inc_count_cl = inc_count.clone();
+        data_ctx.bind_action("greet", move || {
+            inc_count_cl.update(|v| *v += 1);
+        });
+
+        let quick_content = include_str!("../app.quick");
+        let mut app = App::new(
+            WindowOptions::new()
+                .title("Hello World - Quick Framework (.quick format)")
+                .size(640.0, 480.0),
+        )
+        .from_quick(quick_content, &mut data_ctx)
+        .expect("Failed to parse .quick file");
+
+        let canvas = app.render_frame(Size::new(640.0, 480.0));
+        assert!(canvas.commands().len() >= 4);
+        assert_eq!(click_count.get(), 0);
+
+        inc_count.update(|v| *v += 1);
+        assert_eq!(click_count.get(), 1);
+        assert!(greeting.get().contains("1 times"));
+    }
+}

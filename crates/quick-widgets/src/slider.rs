@@ -85,9 +85,15 @@ impl Widget for Slider {
     }
 
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
-        let val = self.value.get().clamp(self.min, self.max);
-        let ratio = if (self.max - self.min).abs() > 0.001 {
-            (val - self.min) / (self.max - self.min)
+        let (min_val, max_val) = if self.min <= self.max {
+            (self.min, self.max)
+        } else {
+            (self.max, self.min)
+        };
+        let raw_val = self.value.get();
+        let val = if raw_val.is_nan() { min_val } else { raw_val.clamp(min_val, max_val) };
+        let ratio = if (max_val - min_val).abs() > 0.001 {
+            (val - min_val) / (max_val - min_val)
         } else {
             0.0
         };
@@ -148,3 +154,60 @@ impl Widget for Slider {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quick_core::geometry::Point;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_slider_drag_and_value_change() {
+        let val_sig = Signal::new(0.0);
+        let callback_val = Rc::new(RefCell::new(0.0));
+        let cb_cl = callback_val.clone();
+
+        let mut slider = Slider::new(val_sig.clone(), 0.0, 100.0)
+            .on_change(move |v| *cb_cl.borrow_mut() = v);
+
+        let bounds = Rect::new(0.0, 0.0, 124.0, 36.0);
+        // Track left = 0 + 12 = 12. Track width = 124 - 24 = 100.
+
+        // Down at 50% (x = 62.0)
+        let down = Event::Pointer(PointerEvent {
+            position: Point::new(62.0, 18.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        assert!(slider.handle_event(&down, bounds));
+        assert!((val_sig.get() - 50.0).abs() < 0.1);
+        assert!((*callback_val.borrow() - 50.0).abs() < 0.1);
+
+        // Move to 75% (x = 87.0)
+        let drag = Event::Pointer(PointerEvent {
+            position: Point::new(87.0, 18.0),
+            button: None,
+            phase: PointerPhase::Moved,
+            modifiers: Default::default(),
+        });
+        assert!(slider.handle_event(&drag, bounds));
+        assert!((val_sig.get() - 75.0).abs() < 0.1);
+
+        // Up at 100% (x = 112.0)
+        let up = Event::Pointer(PointerEvent {
+            position: Point::new(112.0, 18.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Up,
+            modifiers: Default::default(),
+        });
+        assert!(slider.handle_event(&up, bounds));
+        assert!((val_sig.get() - 100.0).abs() < 0.1);
+
+        let mut canvas = Canvas::new();
+        slider.paint(&mut canvas, bounds);
+        assert!(canvas.commands().len() >= 3);
+    }
+}
+

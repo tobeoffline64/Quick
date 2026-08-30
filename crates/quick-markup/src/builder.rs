@@ -87,11 +87,12 @@ fn build_node(
         .unwrap_or_default();
     let class_refs: Vec<&str> = classes.iter().map(|s| s.as_str()).collect();
 
-    let mut computed_style = stylesheet.resolve(
+    let mut computed_style = stylesheet.resolve_with_attrs(
         &node.element,
         &class_refs,
         node.id.as_deref(),
         None,
+        Some(&node.attributes),
     );
 
     if let Some(ref inline_css) = node.style {
@@ -124,7 +125,11 @@ fn build_node(
             btn.classes = classes;
             btn.style.merge_with(&computed_style);
 
-            if let Some(ref action_name) = node.on_click {
+            let action_opt = node.on_click.as_ref()
+                .or_else(|| node.attributes.get("onclick"))
+                .or_else(|| node.attributes.get("on_click"));
+
+            if let Some(action_name) = action_opt {
                 let clean_name = action_name.trim_end_matches("()").trim();
                 if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
                     let handler_cl = handler.clone();
@@ -146,7 +151,11 @@ fn build_node(
             switch.classes = classes;
             switch.style.merge_with(&computed_style);
 
-            if let Some(ref action_name) = node.attributes.get("onchange") {
+            let action_opt = node.on_change.as_ref()
+                .or_else(|| node.attributes.get("onchange"))
+                .or_else(|| node.attributes.get("on_change"));
+
+            if let Some(action_name) = action_opt {
                 let clean_name = action_name.trim_end_matches("()").trim();
                 if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
                     let handler_cl = handler.clone();
@@ -168,7 +177,11 @@ fn build_node(
             cb.classes = classes;
             cb.style.merge_with(&computed_style);
 
-            if let Some(ref action_name) = node.attributes.get("onchange") {
+            let action_opt = node.on_change.as_ref()
+                .or_else(|| node.attributes.get("onchange"))
+                .or_else(|| node.attributes.get("on_change"));
+
+            if let Some(action_name) = action_opt {
                 let clean_name = action_name.trim_end_matches("()").trim();
                 if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
                     let handler_cl = handler.clone();
@@ -192,6 +205,20 @@ fn build_node(
             slider.id = node.id.clone();
             slider.classes = classes;
             slider.style.merge_with(&computed_style);
+
+            let action_opt = node.on_change.as_ref()
+                .or_else(|| node.attributes.get("onchange"))
+                .or_else(|| node.attributes.get("on_change"));
+
+            if let Some(action_name) = action_opt {
+                let clean_name = action_name.trim_end_matches("()").trim();
+                if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
+                    let handler_cl = handler.clone();
+                    slider.on_change = Some(Box::new(move |_| {
+                        (handler_cl.borrow_mut())();
+                    }));
+                }
+            }
             Box::new(slider)
         }
         "Chip" => {
@@ -204,7 +231,11 @@ fn build_node(
                 }
             }
 
-            if let Some(ref action_name) = node.on_click {
+            let action_opt = node.on_click.as_ref()
+                .or_else(|| node.attributes.get("onclick"))
+                .or_else(|| node.attributes.get("on_click"));
+
+            if let Some(action_name) = action_opt {
                 let clean_name = action_name.trim_end_matches("()").trim();
                 if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
                     let handler_cl = handler.clone();
@@ -225,14 +256,21 @@ fn build_node(
                 .and_then(|key| data_ctx.f32_signals.get(key).cloned())
                 .unwrap_or_else(|| Signal::new(0.0));
 
+            let min_val = node.attributes.get("min").and_then(|v| v.parse().ok()).unwrap_or(0.0);
+            let max_val = node.attributes.get("max").and_then(|v| v.parse().ok()).unwrap_or_else(|| {
+                if prog_sig.get_untracked() > 1.0 { 100.0 } else { 1.0 }
+            });
+
             let mut prog = ProgressBar::new(prog_sig);
+            prog.min = min_val;
+            prog.max = max_val;
             prog.id = node.id.clone();
             prog.classes = classes;
             prog.style.merge_with(&computed_style);
             Box::new(prog)
         }
         "Card" => {
-            let variant = match node.attributes.get("variant").map(|s| s.as_str()) {
+            let variant = match node.attributes.get("variant").map(|s| s.to_lowercase()).as_deref() {
                 Some("filled") => CardVariant::Filled,
                 Some("outlined") => CardVariant::Outlined,
                 _ => CardVariant::Elevated,
@@ -265,7 +303,11 @@ fn build_node(
                 input.value = text_val.to_string();
             }
 
-            if let Some(ref action_name) = node.on_change {
+            let action_opt = node.on_change.as_ref()
+                .or_else(|| node.attributes.get("onchange"))
+                .or_else(|| node.attributes.get("on_change"));
+
+            if let Some(action_name) = action_opt {
                 let clean_name = action_name.trim_end_matches("()").trim();
                 if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
                     let handler_cl = handler.clone();
@@ -292,7 +334,7 @@ fn build_node(
 
             for child_node in &node.children {
                 let child_widget = build_node(child_node, data_ctx, stylesheet);
-                hstack.children.push(child_widget);
+                hstack.add_child(child_widget);
             }
             Box::new(hstack)
         }
@@ -304,7 +346,7 @@ fn build_node(
 
             for child_node in &node.children {
                 let child_widget = build_node(child_node, data_ctx, stylesheet);
-                vstack.children.push(child_widget);
+                vstack.add_child(child_widget);
             }
             Box::new(vstack)
         }
@@ -316,7 +358,7 @@ fn build_node(
 
             for child_node in &node.children {
                 let child_widget = build_node(child_node, data_ctx, stylesheet);
-                container.children.push(child_widget);
+                container.add_child(child_widget);
             }
             Box::new(container)
         }
@@ -327,24 +369,39 @@ fn build_node(
 mod tests {
     use super::*;
     use crate::quick_parser::parse_quick;
+    use quick_core::event::{PointerButton, PointerEvent, PointerPhase};
     use quick_core::geometry::Point;
 
     #[test]
     fn test_builder_switch_and_slider() {
         let is_checked = Signal::new(false);
         let slider_val = Signal::new(50.0);
+        let switch_toggled = Rc::new(RefCell::new(false));
+        let slider_adjusted = Rc::new(RefCell::new(false));
+        let chip_clicked = Rc::new(RefCell::new(false));
+        let btn_clicked = Rc::new(RefCell::new(false));
+
+        let sw_cl = switch_toggled.clone();
+        let sl_cl = slider_adjusted.clone();
+        let ch_cl = chip_clicked.clone();
+        let bt_cl = btn_clicked.clone();
 
         let mut ctx = DataContext::new();
         ctx.bind_bool_signal("is_active", is_checked.clone());
         ctx.bind_f32_signal("brightness", slider_val.clone());
+        ctx.bind_action("on_toggle", move || *sw_cl.borrow_mut() = true);
+        ctx.bind_action("on_slide", move || *sl_cl.borrow_mut() = true);
+        ctx.bind_action("on_chip", move || *ch_cl.borrow_mut() = true);
+        ctx.bind_action("on_btn", move || *bt_cl.borrow_mut() = true);
 
         let doc = parse_quick(r#"
             <VStack theme="material-you">
                 <Card variant="elevated">
-                    <Switch checked="$is_active" />
-                    <Slider min="0" max="100" value="$brightness" />
-                    <Chip text="WiFi" />
+                    <Switch id="sw" checked="$is_active" onchange="on_toggle" />
+                    <Slider id="sl" min="0" max="100" value="$brightness" onchange="on_slide" />
+                    <Chip id="ch" text="WiFi" onclick="on_chip" />
                     <ProgressBar progress="$brightness" />
+                    <Button id="btn" text="Submit" onclick="on_btn" />
                 </Card>
             </VStack>
         "#).unwrap();
@@ -360,5 +417,16 @@ mod tests {
         root.paint(&mut canvas, quick_core::geometry::Rect::new(0.0, 0.0, 600.0, 400.0));
 
         assert!(canvas.commands().len() >= 6);
+
+        // Dispatch click to button
+        let bounds = engine.get_layout(root_node).unwrap();
+        let click_btn = quick_core::event::Event::Pointer(PointerEvent {
+            position: Point::new(100.0, 150.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        let _ = root.handle_event(&click_btn, bounds);
     }
 }
+

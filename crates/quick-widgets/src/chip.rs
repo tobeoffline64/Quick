@@ -157,3 +157,47 @@ impl Widget for Chip {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_chip_click_and_toggle() {
+        let sel_sig = Signal::new(false);
+        let clicked = Rc::new(RefCell::new(false));
+        let clicked_cl = clicked.clone();
+
+        let mut chip = Chip::new("Pure Rust")
+            .with_selected(sel_sig.clone())
+            .on_click(move || *clicked_cl.borrow_mut() = true);
+
+        let bounds = Rect::new(0.0, 0.0, 80.0, 32.0);
+
+        let down = Event::Pointer(PointerEvent {
+            position: Point::new(40.0, 16.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        assert!(chip.handle_event(&down, bounds));
+
+        let up = Event::Pointer(PointerEvent {
+            position: Point::new(40.0, 16.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Up,
+            modifiers: Default::default(),
+        });
+        assert!(chip.handle_event(&up, bounds));
+
+        assert!(sel_sig.get());
+        assert!(*clicked.borrow());
+
+        let mut canvas = Canvas::new();
+        chip.paint(&mut canvas, bounds);
+        assert!(!canvas.commands().is_empty());
+    }
+}
+

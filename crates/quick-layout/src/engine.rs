@@ -254,4 +254,64 @@ mod tests {
         assert_eq!(r1.size.width, 120.0); // min-width 120 overrides width 50
         assert_eq!(r1.size.height, 60.0); // min-height 60 overrides height 30
     }
+
+    #[test]
+    fn test_layout_boundary_and_zero_sizes() {
+        let mut engine = LayoutEngine::new();
+
+        let zero_style = Style::default();
+        let c1 = engine.new_leaf(&zero_style).unwrap();
+
+        let mut root_style = Style::default();
+        root_style.width = Some(QuickDimension::Px(0.0));
+        root_style.height = Some(QuickDimension::Px(0.0));
+
+        let root = engine.new_with_children(&root_style, &[c1]).unwrap();
+        assert!(engine.compute_layout(root, Size::new(0.0, 0.0)).is_ok());
+
+        let r = engine.get_layout(root).unwrap();
+        assert_eq!(r.size.width, 0.0);
+        assert_eq!(r.size.height, 0.0);
+    }
+
+    #[test]
+    fn test_deep_layout_nesting_stress() {
+        let mut engine = LayoutEngine::new();
+        let mut current = engine.new_leaf(&Style::default()).unwrap();
+
+        for _ in 0..50 {
+            let mut container_style = Style::default();
+            container_style.padding = Some(quick_core::geometry::Insets::all(2.0));
+            current = engine.new_with_children(&container_style, &[current]).unwrap();
+        }
+
+        assert!(engine.compute_layout(current, Size::new(500.0, 500.0)).is_ok());
+        let layout = engine.get_layout(current).unwrap();
+        assert!(layout.size.width <= 500.0);
+    }
+
+    #[test]
+    fn test_wide_layout_siblings_stress() {
+        let mut engine = LayoutEngine::new();
+        let mut child_style = Style::default();
+        child_style.width = Some(QuickDimension::Px(2.0));
+        child_style.height = Some(QuickDimension::Px(10.0));
+
+        let mut children = Vec::with_capacity(500);
+        for _ in 0..500 {
+            children.push(engine.new_leaf(&child_style).unwrap());
+        }
+
+        let mut root_style = Style::default();
+        root_style.flex_direction = Some(FlexDirection::Row);
+        root_style.width = Some(QuickDimension::Px(1000.0));
+        root_style.height = Some(QuickDimension::Px(20.0));
+
+        let root = engine.new_with_children(&root_style, &children).unwrap();
+        assert!(engine.compute_layout(root, Size::new(1000.0, 20.0)).is_ok());
+
+        let last_child_layout = engine.get_layout(children[499]).unwrap();
+        assert_eq!(last_child_layout.size.width, 2.0);
+        assert_eq!(last_child_layout.origin.x, 499.0 * 2.0);
+    }
 }

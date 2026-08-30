@@ -125,16 +125,32 @@ impl Widget for Container {
     fn handle_event(&mut self, event: &Event, bounds: Rect) -> bool {
         let _ = bounds;
         match event {
-            Event::Pointer(quick_core::event::PointerEvent { phase: quick_core::event::PointerPhase::Down, .. }) => {
-                let mut consumed = false;
-                for (child, child_bound) in self.children.iter_mut().zip(&self.child_bounds).rev() {
-                    if !consumed && child.handle_event(event, *child_bound) {
-                        consumed = true;
-                    } else if consumed {
-                        let _ = child.handle_event(event, *child_bound);
+            Event::Pointer(quick_core::event::PointerEvent {
+                phase: quick_core::event::PointerPhase::Down,
+                ..
+            }) => {
+                let mut hit_idx = None;
+                for (i, (child, child_bound)) in self.children.iter_mut().zip(&self.child_bounds).enumerate().rev() {
+                    if child.handle_event(event, *child_bound) {
+                        hit_idx = Some(i);
+                        break;
                     }
                 }
-                consumed
+                if let Some(hit) = hit_idx {
+                    let blur_event = Event::Focus(quick_core::event::FocusEvent::Lost);
+                    for (i, (child, child_bound)) in self.children.iter_mut().zip(&self.child_bounds).enumerate() {
+                        if i != hit {
+                            let _ = child.handle_event(&blur_event, *child_bound);
+                        }
+                    }
+                    true
+                } else {
+                    let blur_event = Event::Focus(quick_core::event::FocusEvent::Lost);
+                    for (child, child_bound) in self.children.iter_mut().zip(&self.child_bounds) {
+                        let _ = child.handle_event(&blur_event, *child_bound);
+                    }
+                    false
+                }
             }
             _ => {
                 for (child, child_bound) in self.children.iter_mut().zip(&self.child_bounds).rev() {
@@ -327,5 +343,17 @@ mod tests {
             modifiers: Default::default(),
         });
         assert!(container.handle_event(&click_btn, bounds));
+
+        // 3. Click back on TextInput -> focused
+        assert!(container.handle_event(&click_input, bounds));
+
+        // 4. Click outside all children (empty space in container) -> TextInput loses focus
+        let click_empty = Event::Pointer(PointerEvent {
+            position: Point::new(150.0, 80.0),
+            button: Some(PointerButton::Primary),
+            phase: PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        assert!(!container.handle_event(&click_empty, bounds));
     }
 }

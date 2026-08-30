@@ -64,4 +64,48 @@ mod tests {
         assert_eq!(doc.root.element, "VStack");
         assert_eq!(doc.root.children.len(), 1);
     }
+
+    #[test]
+    fn test_parse_quick_adversarial_edge_cases() {
+        // 1. Invalid XML syntax returns Err without panic
+        assert!(parse_quick("<VStack><Text></VStack>").is_err());
+
+        // 2. XML with comments and whitespace
+        let xml_with_comments = r#"
+        <!-- Header comment -->
+        <VStack>
+            <!-- Sibling comment -->
+            <Text text="Hello" />
+        </VStack>
+        "#;
+        let doc = parse_quick(xml_with_comments).expect("Should handle XML comments");
+        assert_eq!(doc.root.children.len(), 1);
+
+        // 3. Non-existent file path returns clean Err
+        assert!(parse_quick_file("/non_existent/path/app.quick").is_err());
+
+        // 4. Invalid TOML syntax returns Err without panic
+        assert!(parse_quick("invalid [ [[ toml syntax = {").is_err());
+    }
+
+    #[test]
+    fn test_parse_quick_deeply_nested_and_unknown_tags() {
+        let mut nested = String::from("<VStack>");
+        for _ in 0..30 {
+            nested.push_str("<CustomBox class=\"wrapper\">");
+        }
+        nested.push_str("<Text text=\"Deep Content\" />");
+        for _ in 0..30 {
+            nested.push_str("</CustomBox>");
+        }
+        nested.push_str("</VStack>");
+
+        let doc = parse_quick(&nested).expect("Should parse 30-level nested markup");
+        assert_eq!(doc.root.element, "VStack");
+        assert_eq!(doc.root.children.len(), 1);
+
+        let mut data_ctx = crate::builder::DataContext::new();
+        let (root_widget, _) = crate::builder::build_ui_tree(&doc, &mut data_ctx);
+        assert_eq!(root_widget.widget_type(), "Container");
+    }
 }

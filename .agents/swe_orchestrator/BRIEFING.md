@@ -1,74 +1,81 @@
-# BRIEFING — 2026-08-30T01:52:50Z
+# BRIEFING — 2026-08-30T02:48:50Z
 
 ## Mission
-Fix remaining Cargo workspace dependencies, compile all Quick UI framework crates, and verify hello-world on Linux Wayland.
+Orchestrate the SWE Light workflow to fix all compiler errors, warnings, type mismatches, tests, and runtime issues in Quick UI Framework until `cargo check`, `cargo build`, `cargo test`, and `cargo run -p hello-world` execute cleanly with 0 errors and 0 warnings.
 
 ## 🔒 My Identity
 - Archetype: orchestrator
 - Roles: orchestrator, user_liaison, human_reporter, successor
 - Working directory: /home/ai-workspace/coding-repo/quick-silver/.agents/swe_orchestrator
 - Original parent: parent
-- Original parent conversation ID: e62eacb0-a063-4341-b20d-8ee78dfa9f07
+- Original parent conversation ID: 32acf1fc-eebf-45bb-aeb5-6654c563b1c5
 
 ## 🔒 My Workflow
 - **Pattern**: SWE Light
 - **Scope document**: /home/ai-workspace/coding-repo/quick-silver/ORIGINAL_REQUEST.md
-1. **Decompose**: SWE Light pattern (single sequential refinement line, no decomposition).
+1. **Decompose**: SWE Light does not decompose. Each worker receives the entire task verbatim.
 2. **Dispatch & Execute**:
-   - Implementer -> Reviewer R1 -> Reviewer R2 -> Reviewer R3 -> Auditor -> Completion
-3. **On failure**:
-   - Retry -> Replace -> Skip -> Redistribute -> Redesign -> Escalate
-4. **Succession**: Self-succeed if spawn count >= 16 or context near limit.
+   - Direct: teamwork_preview_implementer -> teamwork_preview_reviewer -> teamwork_preview_reviewer -> teamwork_preview_reviewer (minimum 3 review rounds) -> teamwork_preview_victory_auditor.
+3. **On failure** (in this order):
+   - Retry: nudge stuck agent or re-send task
+   - Replace: spawn fresh agent with partial progress
+   - Skip: proceed without (only if non-critical)
+   - Redistribute: split stuck agent's remaining work
+   - Redesign: re-partition decomposition
+   - Escalate: report to parent (last resort)
+4. **Succession**: Self-succeed at 16 spawns, write handoff.md, spawn successor.
 - **Work items**:
-  1. teamwork_preview_implementer [done]
-  2. teamwork_preview_reviewer R1 [done]
-  3. teamwork_preview_reviewer R2 [done]
-  4. teamwork_preview_reviewer R3 [done]
-  5. Verification & Victory Audit [done]
-- **Current phase**: Complete
-- **Current focus**: Project Completion Handoff
+  1. Workspace Compilation & Warning Free Fixes [in-progress]
+  2. Test Suite 100% Pass Rate [in-progress]
+  3. hello-world runtime verification [in-progress]
+- **Current phase**: 2
+- **Current focus**: Monitoring teamwork_preview_reviewer (Round 3)
 
 ## 🔒 Key Constraints
-- NEVER write, modify, or create source code files yourself. Delegate all implementation and all repair to workers.
-- Propagate original task verbatim.
-- Floor of 3 review rounds.
-- Never reuse subagents after handoff.
-- Carry open-issues ledger across all rounds.
+- NEVER write, modify, or create source code files yourself. Delegate all implementation and all repair.
+- NEVER explore or debug the codebase in order to solve the task yourself.
+- Verify independently: spot-check diffs and re-run tests to confirm claims.
+- Maintain an open-issues ledger across all rounds.
+- Floor of 3 review rounds before victory audit.
+- Do not stop until all criteria are met and victory audit passes.
 
 ## Current Parent
-- Conversation ID: e62eacb0-a063-4341-b20d-8ee78dfa9f07
-- Updated: 2026-08-30T01:30:33Z
+- Conversation ID: 32acf1fc-eebf-45bb-aeb5-6654c563b1c5
+- Updated: not yet
 
 ## Key Decisions Made
-- Dispatched Implementer (632137c5-afc5-4ef7-a4a4-4a86160cd117) - completed.
-- Dispatched Reviewer R1 (b4bf20ca-fdc1-4bb0-bf9c-f826d46684f9) - completed.
-- Dispatched Reviewer R2 (9265d280-e974-4c39-8ba8-dcbe090df782) - completed.
-- Dispatched Reviewer R3 (0e88b1f8-1abd-4be3-8439-8fdd71d626d3) - completed.
-- Orchestrator verified all builds, 43 unit tests, apps, and benchmarks pass.
-- Dispatched Victory Auditor (2b63c5ce-8693-48f3-abb6-be8bf216229d) - confirmed victory.
+- Initialized SWE Light sequential refinement workflow.
+- Round 0 completed by teamwork_preview_implementer (82b5285b-8360-4a3c-8f92-6b1c53da7350).
+- Round 1 completed by teamwork_preview_reviewer (4a774964-90aa-498c-9f4f-7ab2f1d9d38f).
+- Round 2 completed by teamwork_preview_reviewer (f7f0ce9e-9c71-4bda-a6ac-3f68fc143ab0).
+- Round 3 dispatched to teamwork_preview_reviewer (c29fa482-c979-43c7-8920-51a323bb2ec0).
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |---|---|---|---|---|
-| Implementer | teamwork_preview_implementer | Initial implementation & workspace compilation fix | completed | 632137c5-afc5-4ef7-a4a4-4a86160cd117 |
-| Reviewer R1 | teamwork_preview_reviewer | Adversarial review & stress testing Round 1 | completed | b4bf20ca-fdc1-4bb0-bf9c-f826d46684f9 |
-| Reviewer R2 | teamwork_preview_reviewer | Adversarial review & stress testing Round 2 | completed | 9265d280-e974-4c39-8ba8-dcbe090df782 |
-| Reviewer R3 | teamwork_preview_reviewer | Adversarial review & stress testing Round 3 | completed | 0e88b1f8-1abd-4be3-8439-8fdd71d626d3 |
-| Victory Auditor | teamwork_preview_victory_auditor | Independent 3-phase post-victory audit | completed | 2b63c5ce-8693-48f3-abb6-be8bf216229d |
+| implementer_r0 | teamwork_preview_implementer | Full task implementation | completed | 82b5285b-8360-4a3c-8f92-6b1c53da7350 |
+| reviewer_r1 | teamwork_preview_reviewer | Adversarial Review 1 | completed | 4a774964-90aa-498c-9f4f-7ab2f1d9d38f |
+| reviewer_r2 | teamwork_preview_reviewer | Adversarial Review 2 | completed | f7f0ce9e-9c71-4bda-a6ac-3f68fc143ab0 |
+| reviewer_r3 | teamwork_preview_reviewer | Adversarial Review 3 | running | c29fa482-c979-43c7-8920-51a323bb2ec0 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 5 / 16
-- Pending subagents: none
+- Spawn count: 4 / 16
+- Pending subagents: c29fa482-c979-43c7-8920-51a323bb2ec0
 - Predecessor: none
-- Successor: not required (task complete)
+- Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: stopped
+- Heartbeat cron: 63ab1f18-155b-42f0-a3c3-ded059bb9968/task-12
 - Safety timer: none
+- On succession: kill all timers before spawning successor
+- On context truncation: run `manage_task(Action="list")` — re-create if missing
 
 ## Artifact Index
-- /home/ai-workspace/coding-repo/quick-silver/ORIGINAL_REQUEST.md — Original User Request
-- /home/ai-workspace/coding-repo/quick-silver/.agents/swe_orchestrator/DISPATCH.md — Dispatch history
-- /home/ai-workspace/coding-repo/quick-silver/.agents/swe_orchestrator/progress.md — Progress tracker
-- /home/ai-workspace/coding-repo/quick-silver/.agents/swe_orchestrator/handoff.md — Final Handoff Report
+- /home/ai-workspace/coding-repo/quick-silver/ORIGINAL_REQUEST.md — Original request verbatim
+- /home/ai-workspace/coding-repo/quick-silver/.agents/swe_orchestrator/DISPATCH.md — Dispatch log
+- /home/ai-workspace/coding-repo/quick-silver/.agents/swe_orchestrator/BRIEFING.md — Persistent working memory
+- /home/ai-workspace/coding-repo/quick-silver/.agents/swe_orchestrator/progress.md — Liveness & status tracking
+- /home/ai-workspace/coding-repo/quick-silver/.agents/teamwork_preview_implementer_r0/handoff.md — Implementer R0 report
+- /home/ai-workspace/coding-repo/quick-silver/.agents/teamwork_preview_reviewer_r1/handoff.md — Reviewer R1 report
+- /home/ai-workspace/coding-repo/quick-silver/.agents/teamwork_preview_reviewer_r2/handoff.md — Reviewer R2 report

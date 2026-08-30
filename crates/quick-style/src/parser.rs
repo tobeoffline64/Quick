@@ -106,6 +106,28 @@ pub fn parse_selector(input: &str) -> Selector {
         };
     }
 
+    let mut s_owned = String::new();
+    let s = if let (Some(bracket_open), Some(bracket_close)) = (memchr(b'[', s.as_bytes()), memchr(b']', s.as_bytes())) {
+        if bracket_open < bracket_close {
+            let attr_expr = s[bracket_open + 1..bracket_close].trim();
+            if let Some(eq_pos) = memchr(b'=', attr_expr.as_bytes()) {
+                let key = attr_expr[..eq_pos].trim().to_string();
+                let val = attr_expr[eq_pos + 1..].trim().trim_matches('\'').trim_matches('"').to_string();
+                selector.attribute = Some((key, val));
+            } else if !attr_expr.is_empty() {
+                selector.attribute = Some((attr_expr.to_string(), String::new()));
+            }
+
+            s_owned.push_str(s[..bracket_open].trim());
+            s_owned.push_str(s[bracket_close + 1..].trim());
+            s_owned.as_str()
+        } else {
+            s
+        }
+    } else {
+        s
+    };
+
     let dot_pos = memchr(b'.', s.as_bytes());
     let hash_pos = memchr(b'#', s.as_bytes());
 
@@ -138,7 +160,7 @@ pub fn parse_selector(input: &str) -> Selector {
     };
 
     let elem_trimmed = elem_str.trim();
-    if !elem_trimmed.is_empty() {
+    if !elem_trimmed.is_empty() && elem_trimmed != "*" {
         selector.element = Some(elem_trimmed.to_string());
     }
 
@@ -244,7 +266,7 @@ fn apply_property(style: &mut Style, key: &str, val: &str) {
         }
         "gap" => {
             if let Ok(num) = val.trim_end_matches("px").trim().parse::<f32>() {
-                style.gap = Some(num);
+                style.gap = Some(num.max(0.0));
             }
         }
 
@@ -265,27 +287,30 @@ fn apply_property(style: &mut Style, key: &str, val: &str) {
         }
         "border-width" => {
             if let Ok(num) = val.trim_end_matches("px").trim().parse::<f32>() {
-                style.border_width = Some(num);
+                style.border_width = Some(num.max(0.0));
             }
         }
         "border-radius" => {
-            if let Ok(num) = val.trim_end_matches("px").trim().parse::<f32>() {
-                style.border_radius = Some(BorderRadius::all(num));
-            }
+            style.border_radius = parse_border_radius(val);
         }
         "border" => {
             let parts: Vec<&str> = val.split_whitespace().collect();
             for part in parts {
                 if let Ok(w) = part.trim_end_matches("px").parse::<f32>() {
-                    style.border_width = Some(w);
+                    style.border_width = Some(w.max(0.0));
                 } else if let Ok(color) = Color::from_hex(part) {
                     style.border_color = Some(color);
                 }
             }
         }
         "opacity" => {
-            if let Ok(num) = val.trim().parse::<f32>() {
-                style.opacity = Some(num);
+            let trimmed = val.trim();
+            if let Some(pct) = trimmed.strip_suffix('%') {
+                if let Ok(num) = pct.trim().parse::<f32>() {
+                    style.opacity = Some((num / 100.0).clamp(0.0, 1.0));
+                }
+            } else if let Ok(num) = trimmed.parse::<f32>() {
+                style.opacity = Some(num.clamp(0.0, 1.0));
             }
         }
         "font-family" => {
@@ -293,16 +318,23 @@ fn apply_property(style: &mut Style, key: &str, val: &str) {
         }
         "font-size" => {
             if let Ok(num) = val.trim_end_matches("px").trim().parse::<f32>() {
-                style.font_size = Some(num);
+                style.font_size = Some(num.max(1.0));
             }
         }
         "font-weight" => {
             if let Ok(weight) = val.parse::<u16>() {
                 style.font_weight = Some(weight);
-            } else if val == "bold" {
-                style.font_weight = Some(700);
-            } else if val == "normal" {
-                style.font_weight = Some(400);
+            } else {
+                match val.to_lowercase().as_str() {
+                    "bold" | "bolder" => style.font_weight = Some(700),
+                    "extrabold" | "heavy" | "black" => style.font_weight = Some(800),
+                    "semibold" | "demibold" => style.font_weight = Some(600),
+                    "medium" => style.font_weight = Some(500),
+                    "normal" | "regular" => style.font_weight = Some(400),
+                    "light" => style.font_weight = Some(300),
+                    "extralight" | "thin" => style.font_weight = Some(200),
+                    _ => {}
+                }
             }
         }
         "text-align" => {
@@ -315,6 +347,20 @@ fn apply_property(style: &mut Style, key: &str, val: &str) {
             };
         }
         _ => {}
+    }
+}
+
+fn parse_border_radius(val: &str) -> Option<BorderRadius> {
+    let parts: Vec<f32> = val
+        .split_whitespace()
+        .filter_map(|p| p.trim_end_matches("px").parse::<f32>().ok())
+        .collect();
+
+    match parts.len() {
+        1 => Some(BorderRadius::all(parts[0])),
+        2 => Some(BorderRadius::new(parts[0], parts[1], parts[0], parts[1])),
+        4 => Some(BorderRadius::new(parts[0], parts[1], parts[2], parts[3])),
+        _ => None,
     }
 }
 
@@ -440,5 +486,43 @@ mod tests {
 
         let s = sheet.resolve("Button", &["secondary"], None, None);
         assert_eq!(s.padding, Some(Insets::all(12.0)));
+    }
+
+    #[test]
+    fn test_attribute_selectors() {
+        let s1 = parse_selector("Button[variant=\"filled\"]");
+        assert_eq!(s1.element, Some("Button".to_string()));
+        assert_eq!(s1.attribute, Some(("variant".to_string(), "filled".to_string())));
+
+        let s2 = parse_selector("Card[variant='elevated']");
+        assert_eq!(s2.element, Some("Card".to_string()));
+        assert_eq!(s2.attribute, Some(("variant".to_string(), "elevated".to_string())));
+
+        let sheet = parse_stylesheet(r#"
+            Button[variant="filled"] { background: #381E72; color: #D0BCFF; }
+            Card[variant="elevated"] { background: #211F26; }
+        "#);
+        assert_eq!(sheet.rules.len(), 2);
+
+        let mut btn_attrs = std::collections::HashMap::new();
+        btn_attrs.insert("variant".to_string(), "filled".to_string());
+        let btn_style = sheet.resolve_with_attrs("Button", &[], None, None, Some(&btn_attrs));
+        assert_eq!(btn_style.background_color, Some(Color::from_hex("#381E72").unwrap()));
+
+        let mut card_attrs = std::collections::HashMap::new();
+        card_attrs.insert("variant".to_string(), "elevated".to_string());
+        let card_style = sheet.resolve_with_attrs("Card", &[], None, None, Some(&card_attrs));
+        assert_eq!(card_style.background_color, Some(Color::from_hex("#211F26").unwrap()));
+    }
+
+    #[test]
+    fn test_multi_border_radius_and_opacity_percent() {
+        let style1 = parse_inline_style("border-radius: 8px 16px; opacity: 75%; font-weight: semibold;");
+        assert_eq!(style1.border_radius, Some(BorderRadius::new(8.0, 16.0, 8.0, 16.0)));
+        assert_eq!(style1.opacity, Some(0.75));
+        assert_eq!(style1.font_weight, Some(600));
+
+        let style2 = parse_inline_style("border-radius: 4px 8px 12px 16px;");
+        assert_eq!(style2.border_radius, Some(BorderRadius::new(4.0, 8.0, 12.0, 16.0)));
     }
 }

@@ -214,4 +214,39 @@ mod tests {
         let canvas_2 = app.render_frame(Size::new(400.0, 300.0));
         assert!(canvas_2.commands().len() >= 4);
     }
+
+    #[test]
+    fn test_app_from_xml_and_toml() {
+        let xml_doc = r#"
+<VStack style="background: #11111b; padding: 16px;">
+    <Text text="XML Hello" />
+    <Button text="Click" />
+</VStack>
+"#;
+        let mut ctx = DataContext::new();
+        let mut app_xml = App::new(WindowOptions::new().title("XML App"))
+            .from_xml(xml_doc, &mut ctx)
+            .unwrap();
+        let c1 = app_xml.render_frame(Size::new(300.0, 200.0));
+        assert!(!c1.commands().is_empty());
+
+        let toml_doc = r#"
+[root]
+type = "VStack"
+style = "padding: 16px;"
+
+[[root.children]]
+type = "Text"
+text = "TOML Hello"
+"#;
+        let mut app_toml = App::new(WindowOptions::new().title("TOML App"))
+            .from_toml(toml_doc, &mut ctx)
+            .unwrap();
+        let c2 = app_toml.render_frame(Size::new(300.0, 200.0));
+        assert!(!c2.commands().is_empty());
+
+        app_toml.damage_tracker_mut().add_damage(Rect::new(0.0, 0.0, 100.0, 100.0));
+        assert!(app_toml.damage_tracker().is_dirty());
+    }
 }
+

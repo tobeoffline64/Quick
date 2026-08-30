@@ -101,3 +101,115 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_hello_world_app_lifecycle_and_interactions() {
+
+        let click_count = Signal::new(0);
+        let count_sig = click_count.clone();
+
+        let greeting = create_computed(move || {
+            let n = count_sig.get();
+            if n == 0 {
+                "Welcome to your Material You themed Quick application!".to_string()
+            } else {
+                format!("🎉 You clicked the button {} times! (Zero-latency reactivity)", n)
+            }
+        });
+
+        let count_desc = click_count.clone();
+        let description = create_computed(move || {
+            let n = count_desc.get();
+            if n == 0 {
+                "Unified base widgets skinned dynamically via Material You theme package.".to_string()
+            } else {
+                format!("Rendering with Skia 2D in frame bump arena • {} state mutations", n)
+            }
+        });
+
+        let gpu_enabled = Signal::new(true);
+        let brightness = Signal::new(75.0);
+
+        let chip_wayland = Signal::new(true);
+        let chip_rust = Signal::new(true);
+        let chip_skia = Signal::new(false);
+
+        let mut data_ctx = DataContext::new();
+        data_ctx.bind_signal("greeting", greeting.clone());
+        data_ctx.bind_signal("description", description.clone());
+        data_ctx.bind_bool_signal("gpu_enabled", gpu_enabled.clone());
+        data_ctx.bind_f32_signal("brightness", brightness.clone());
+        data_ctx.bind_bool_signal("chip_wayland", chip_wayland.clone());
+        data_ctx.bind_bool_signal("chip_rust", chip_rust.clone());
+        data_ctx.bind_bool_signal("chip_skia", chip_skia.clone());
+
+        let count_inc = click_count.clone();
+        let count_inc_cl = count_inc.clone();
+        data_ctx.bind_action("on_click", move || {
+            count_inc_cl.update(|v| *v += 1);
+        });
+
+        let count_reset = click_count.clone();
+        data_ctx.bind_action("on_reset", move || {
+            count_reset.set(0);
+        });
+
+        let gpu_toggle = gpu_enabled.clone();
+        data_ctx.bind_action("toggle_gpu", move || {
+            gpu_toggle.set(!gpu_toggle.get());
+        });
+
+        let slider_called = Rc::new(std::cell::RefCell::new(false));
+        let sl_cl = slider_called.clone();
+        data_ctx.bind_action("on_slider", move || {
+            *sl_cl.borrow_mut() = true;
+        });
+
+        let wayland_called = Rc::new(std::cell::RefCell::new(false));
+        let w_cl = wayland_called.clone();
+        data_ctx.bind_action("toggle_wayland", move || {
+            *w_cl.borrow_mut() = true;
+        });
+
+        let quick_content = include_str!("../app.quick");
+        let mut app = App::new(
+            WindowOptions::new()
+                .title("Material You - Quick Framework")
+                .size(680.0, 560.0),
+        )
+        .from_quick(quick_content, &mut data_ctx)
+        .expect("Failed to parse app.quick");
+
+        let window_size = Size::new(680.0, 560.0);
+        let canvas = app.render_frame(window_size);
+        assert!(canvas.commands().len() >= 10, "Canvas must record render commands for all components");
+
+        assert_eq!(click_count.get(), 0);
+        assert!(greeting.get().contains("Welcome"));
+
+        count_inc.update(|v| *v += 1);
+        assert_eq!(click_count.get(), 1);
+        assert!(greeting.get().contains("1 times"));
+
+        let canvas2 = app.render_frame(window_size);
+        assert!(canvas2.commands().len() >= 10);
+
+        // Test event handling across app bounds
+        let dummy_down = quick_core::event::Event::Pointer(quick_core::event::PointerEvent {
+            position: quick_core::geometry::Point::new(340.0, 280.0),
+            button: Some(quick_core::event::PointerButton::Primary),
+            phase: quick_core::event::PointerPhase::Down,
+            modifiers: Default::default(),
+        });
+        let _ = app.handle_event(&dummy_down, window_size);
+
+        let canvas3 = app.render_frame(window_size);
+        assert!(canvas3.commands().len() >= 10);
+    }
+}
+

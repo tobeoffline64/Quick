@@ -130,7 +130,7 @@ impl Widget for TextInput {
                 }
             }
             Event::Key(key_event) if self.is_focused && key_event.state == KeyState::Pressed => {
-                if key_event.key == "Backspace" {
+                if key_event.key == "Backspace" || key_event.key == "Delete" {
                     if !self.value.is_empty() {
                         self.value.pop();
                         if let Some(ref mut handler) = self.on_change {
@@ -145,9 +145,11 @@ impl Widget for TextInput {
                     }
                     return true;
                 } else if let Some(ref ch) = key_event.text {
-                    self.value.push_str(ch);
-                    if let Some(ref mut handler) = self.on_change {
-                        handler(self.value.clone());
+                    if !ch.chars().all(|c| c.is_control()) {
+                        self.value.push_str(ch);
+                        if let Some(ref mut handler) = self.on_change {
+                            handler(self.value.clone());
+                        }
                     }
                     return true;
                 }
@@ -221,5 +223,16 @@ mod tests {
         assert!(input.handle_event(&backspace, bounds));
         assert_eq!(input.value, "H");
         assert_eq!(*changed_val.borrow(), "H");
+
+        // Delete
+        let delete = Event::Key(KeyEvent {
+            key: "Delete".to_string(),
+            state: KeyState::Pressed,
+            text: None,
+            modifiers: Default::default(),
+        });
+        assert!(input.handle_event(&delete, bounds));
+        assert_eq!(input.value, "");
+        assert_eq!(*changed_val.borrow(), "");
     }
 }

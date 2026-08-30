@@ -1,23 +1,33 @@
-# SWE Light Reviewer R2 Progress
+# Progress Tracking - Round 2 Adversarial Review
 
-## Task Status: Completed & Fully Verified
+## Phase 1: Independent Requirements & Workspace Discovery
+- [x] Read workspace structure and all crates
+- [x] Run existing tests and compiler checks
+- [x] Identify architecture, contracts, and invariants across crates
 
-### Requirements Checklist
-- [x] **R1. Workspace Build & Compilation**:
-  - `cargo check --workspace --all-targets` passes with 0 warnings and 0 errors across all 8 crates, 3 examples, and `apps/hello-world`.
-  - `cargo build --workspace` compiles cleanly.
-- [x] **R2. Hello World Application Verification**:
-  - `cargo build -p hello-world` produces a valid Linux native executable.
-  - `cargo run -p hello-world` executes and renders the initial frame with 13 display commands, processes button click, and re-renders in frame arena.
-  - `cargo run -p hello_world` executes without errors.
-  - `cargo run -p quick_counter` executes without errors.
-- [x] **R3. Performance & Memory Profile**:
-  - `cargo run -p device_showcase -- --benchmark-mode` executed:
-    - Zero-Copy XML Parsing & Hydration: 0.75 ms
-    - Initial Frame Render (Layout + Canvas): 1.26 ms
-    - Cold Startup (TTFF): 2.32 ms
-    - 10,000 Reactive Signal Updates: 7.81 ms
-    - 100 Consecutive Frame Render Passes in Arena: 81.16 ms
-    - Zero memory leak delta (0.00 MB delta under mimalloc)
-- [x] **Full Unit Test Suite**:
-  - 37 unit tests passing across all crates with 100% pass rate.
+## Phase 2: Adversarial Stress Testing & Edge Case Probing
+- [x] `quick-core`: Signals, computed signals, diamond dependencies, effect cycles, effect disposal, RGB/RGBA color parsing
+- [x] `quick-style`: Attribute selectors (`Button[variant="filled"]`, `Card[variant="elevated"]`), multi-value border-radius, opacity percentages, font-weight mappings
+- [x] `quick-render`: Software rasterizer clip stack (`PushClip`/`PopClip`) and coordinate transforms (`Translate`/`Save`/`Restore`)
+- [x] `quick-layout`: Boundary layout constraints, zero-size containers, min/max overrides
+- [x] `quick-widgets`: ProgressBar range normalization (`min`/`max`), TextInput Delete/control key handling, Button/Switch/Chip state dispatch
+- [x] `quick-markup`: XML attribute unescaping, CDATA section handling, quick parser malformed input and comment resilience
+- [x] `quick`: App orchestration, damage tracking, document hydration, render cycles
+- [x] Apps (`hello-world`, `quick_counter`, `device_showcase`): Headless / benchmark / interactive behavior
+
+## Phase 3: Root Cause Analysis & Fixes
+- [x] Fixed CSS attribute selector parsing and resolution across `quick-style` and `quick-markup`
+- [x] Added clip stack and translation support in `quick-render` SoftwareRasterizer
+- [x] Added min/max range fields and normalization to `quick-widgets` ProgressBar
+- [x] Added XML attribute unescaping and CDATA handling in `quick-markup` xml_parser
+- [x] Added RGB/RGBA and extended named colors in `quick-core` geometry
+- [x] Added `dispose_effect` in `quick-core` signals
+- [x] Handled Delete key and control characters in `quick-widgets` TextInput
+- [x] Verified clean compiler diagnostics (0 errors, 0 warnings)
+
+## Phase 4: Final Verification & Handoff
+- [x] Full `cargo check --workspace --all-targets` (0 errors, 0 warnings)
+- [x] Full `cargo test --workspace` (55 tests passed, 0 failed, 100% pass rate)
+- [x] Full `cargo build --workspace --release` (succeeded cleanly)
+- [x] Example and benchmark runs (`quick_counter`, `device_showcase --benchmark-mode`, `hello-world`)
+- [x] Final handoff report written to `handoff.md` and report message prepared

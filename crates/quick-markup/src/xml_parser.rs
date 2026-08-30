@@ -39,7 +39,9 @@ pub fn parse_xml(xml_content: &str) -> Result<UiDocument, String> {
                 for attr in e.attributes() {
                     let attr = attr.map_err(|err| err.to_string())?;
                     let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
-                    let val = String::from_utf8_lossy(&attr.value).to_string();
+                    let val = attr.unescape_value()
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|_| String::from_utf8_lossy(&attr.value).to_string());
 
                     match key.to_lowercase().as_str() {
                         "id" => node.id = Some(val),
@@ -67,7 +69,9 @@ pub fn parse_xml(xml_content: &str) -> Result<UiDocument, String> {
                 for attr in e.attributes() {
                     let attr = attr.map_err(|err| err.to_string())?;
                     let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
-                    let val = String::from_utf8_lossy(&attr.value).to_string();
+                    let val = attr.unescape_value()
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|_| String::from_utf8_lossy(&attr.value).to_string());
 
                     match key.to_lowercase().as_str() {
                         "id" => node.id = Some(val),
@@ -93,7 +97,21 @@ pub fn parse_xml(xml_content: &str) -> Result<UiDocument, String> {
                 let text = e.unescape().map_err(|err| err.to_string())?.to_string();
                 if !text.is_empty() {
                     if let Some(current) = node_stack.last_mut() {
-                        if current.text.is_none() {
+                        if let Some(ref mut existing) = current.text {
+                            existing.push_str(&text);
+                        } else {
+                            current.text = Some(text);
+                        }
+                    }
+                }
+            }
+            Ok(Event::CData(e)) => {
+                let text = String::from_utf8_lossy(e.as_ref()).to_string();
+                if !text.is_empty() {
+                    if let Some(current) = node_stack.last_mut() {
+                        if let Some(ref mut existing) = current.text {
+                            existing.push_str(&text);
+                        } else {
                             current.text = Some(text);
                         }
                     }
@@ -161,5 +179,19 @@ mod tests {
         let styles = doc.styles.unwrap();
         assert!(styles.contains("Text"));
         assert!(styles.contains("Button"));
+    }
+
+    #[test]
+    fn test_parse_xml_cdata_and_escaped_attributes() {
+        let xml = r#"
+        <VStack>
+            <Text text="&quot;Quotes&quot; &amp; &lt;Arrows&gt;" />
+            <Text><![CDATA[Raw <Embedded> & Unescaped Content]]></Text>
+        </VStack>
+        "#;
+        let doc = parse_xml(xml).unwrap();
+        assert_eq!(doc.root.children.len(), 2);
+        assert_eq!(doc.root.children[0].text, Some("\"Quotes\" & <Arrows>".to_string()));
+        assert_eq!(doc.root.children[1].text, Some("Raw <Embedded> & Unescaped Content".to_string()));
     }
 }

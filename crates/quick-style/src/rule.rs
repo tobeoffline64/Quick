@@ -54,10 +54,22 @@ impl StyleSheet {
         id: Option<&str>,
         state: Option<PseudoState>,
     ) -> Style {
+        self.resolve_with_attrs(element, classes, id, state, None)
+    }
+
+    /// Resolve effective style based on element type, class list, ID, pseudo-state, and attributes.
+    pub fn resolve_with_attrs(
+        &self,
+        element: &str,
+        classes: &[&str],
+        id: Option<&str>,
+        state: Option<PseudoState>,
+        attributes: Option<&std::collections::HashMap<String, String>>,
+    ) -> Style {
         let mut matched: Vec<(&StyleRule, u32)> = self
             .rules
             .iter()
-            .filter(|rule| rule.selector.matches(element, classes, id, state))
+            .filter(|rule| rule.selector.matches_with_attrs(element, classes, id, state, attributes))
             .map(|rule| (rule, rule.selector.specificity()))
             .collect();
 

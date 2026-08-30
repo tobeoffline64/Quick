@@ -99,3 +99,46 @@ impl Widget for Card {
         self.container.handle_event(event, bounds)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::button::Button;
+    use crate::text::Text;
+    use quick_core::geometry::Size;
+
+    #[test]
+    fn test_card_variants_and_painting() {
+        let mut card_elevated = Card::new(CardVariant::Elevated)
+            .with_child(Text::new("Title"))
+            .with_child(Button::new("Action"));
+
+        let card_filled = Card::new(CardVariant::Filled)
+            .with_child(Text::new("Filled Content"));
+
+        let card_outlined = Card::new(CardVariant::Outlined)
+            .with_child(Text::new("Outlined Content"));
+
+
+        let mut engine = LayoutEngine::new();
+        let el_node = card_elevated.build_layout(&mut engine).unwrap();
+        engine.compute_layout(el_node, Size::new(400.0, 300.0)).unwrap();
+        card_elevated.update_layout(&engine, Point::ZERO);
+
+        let mut canvas = Canvas::new();
+        let bounds = engine.get_layout(el_node).unwrap();
+        card_elevated.paint(&mut canvas, bounds);
+
+        // Canvas should have shadow, card bg, text, button bg, button text
+        assert!(canvas.commands().len() >= 5);
+
+        let mut canvas_filled = Canvas::new();
+        card_filled.paint(&mut canvas_filled, bounds);
+        assert!(!canvas_filled.commands().is_empty());
+
+        let mut canvas_outlined = Canvas::new();
+        card_outlined.paint(&mut canvas_outlined, bounds);
+        assert!(!canvas_outlined.commands().is_empty());
+    }
+}
+
