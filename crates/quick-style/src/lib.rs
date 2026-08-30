@@ -1,6 +1,7 @@
 pub mod base;
 pub mod color;
 pub mod fonts;
+pub mod noctalia;
 pub mod parser;
 pub mod property;
 pub mod rule;

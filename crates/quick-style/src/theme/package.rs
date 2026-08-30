@@ -181,6 +181,70 @@ impl ThemePackage {
         theme
     }
 
+    /// Native Noctalia Dark Theme Preset (Warm gold primary, midnight navy surface, mint hover).
+    pub fn noctalia() -> Self {
+        let mut theme = Self::new("noctalia");
+        theme.is_dark = true;
+
+        let pal = crate::noctalia::palette::NoctaliaPalette::noctalia_dark();
+        theme.colors.insert("primary".into(), pal.primary);
+        theme.colors.insert("on_primary".into(), pal.on_primary);
+        theme.colors.insert("on-primary".into(), pal.on_primary);
+        theme.colors.insert("secondary".into(), pal.secondary);
+        theme.colors.insert("on_secondary".into(), pal.on_secondary);
+        theme.colors.insert("tertiary".into(), pal.tertiary);
+        theme.colors.insert("surface".into(), pal.surface);
+        theme.colors.insert("on_surface".into(), pal.on_surface);
+        theme.colors.insert("on-surface".into(), pal.on_surface);
+        theme.colors.insert("surface_variant".into(), pal.surface_variant);
+        theme.colors.insert("surface-variant".into(), pal.surface_variant);
+        theme.colors.insert("surface_container".into(), pal.surface_variant);
+        theme.colors.insert("surface-container".into(), pal.surface_variant);
+        theme.colors.insert("outline".into(), pal.outline);
+        theme.colors.insert("error".into(), pal.error);
+        theme.colors.insert("hover".into(), pal.hover);
+
+        theme.shapes.corner_small = 4.0;
+        theme.shapes.corner_medium = 8.0;
+        theme.shapes.corner_large = 12.0;
+        theme.shapes.corner_full = 9999.0;
+        theme.shape_map = theme.shapes.to_map();
+
+        theme
+    }
+
+    /// Native Noctalia Light Theme Preset.
+    pub fn noctalia_light() -> Self {
+        let mut theme = Self::new("noctalia-light");
+        theme.is_dark = false;
+
+        let pal = crate::noctalia::palette::NoctaliaPalette::noctalia_light();
+        theme.colors.insert("primary".into(), pal.primary);
+        theme.colors.insert("on_primary".into(), pal.on_primary);
+        theme.colors.insert("on-primary".into(), pal.on_primary);
+        theme.colors.insert("secondary".into(), pal.secondary);
+        theme.colors.insert("on_secondary".into(), pal.on_secondary);
+        theme.colors.insert("tertiary".into(), pal.tertiary);
+        theme.colors.insert("surface".into(), pal.surface);
+        theme.colors.insert("on_surface".into(), pal.on_surface);
+        theme.colors.insert("on-surface".into(), pal.on_surface);
+        theme.colors.insert("surface_variant".into(), pal.surface_variant);
+        theme.colors.insert("surface-variant".into(), pal.surface_variant);
+        theme.colors.insert("surface_container".into(), pal.surface_variant);
+        theme.colors.insert("surface-container".into(), pal.surface_variant);
+        theme.colors.insert("outline".into(), pal.outline);
+        theme.colors.insert("error".into(), pal.error);
+        theme.colors.insert("hover".into(), pal.hover);
+
+        theme.shapes.corner_small = 4.0;
+        theme.shapes.corner_medium = 8.0;
+        theme.shapes.corner_large = 12.0;
+        theme.shapes.corner_full = 9999.0;
+        theme.shape_map = theme.shapes.to_map();
+
+        theme
+    }
+
     /// Get color by role name.
     pub fn get_color(&self, role: &str) -> Option<Color> {
         self.colors.get(role).copied().or_else(|| self.color_scheme.get_by_name(role))

@@ -18,6 +18,7 @@ pub struct ScrollViewer {
     pub content_height: f32,
     pub show_scrollbar: bool,
     pub children: Vec<Box<dyn Widget>>,
+    pub is_thumb_hovered: bool,
     bounds: Rect,
 }
 
@@ -29,7 +30,8 @@ impl ScrollViewer {
         Self {
             id: None, classes: Vec::new(), style,
             scroll_offset: 0.0, content_height: 0.0,
-            show_scrollbar: true, children: Vec::new(), bounds: Rect::ZERO,
+            show_scrollbar: true, children: Vec::new(),
+            is_thumb_hovered: false, bounds: Rect::ZERO,
         }
     }
 
@@ -43,6 +45,7 @@ impl ScrollViewer {
     }
 
     const SCROLLBAR_W: f32 = 8.0;
+    const SCROLLBAR_HOVER_W: f32 = 14.0;
 }
 
 impl Default for ScrollViewer {
@@ -89,7 +92,7 @@ impl Widget for ScrollViewer {
         for child in &self.children {
             let child_bounds = Rect::new(
                 bounds.origin.x, bounds.origin.y - self.scroll_offset,
-                bounds.size.width - if self.show_scrollbar { Self::SCROLLBAR_W + 2.0 } else { 0.0 },
+                bounds.size.width - if self.show_scrollbar { Self::SCROLLBAR_HOVER_W + 2.0 } else { 0.0 },
                 self.content_height,
             );
             child.paint(canvas, child_bounds);
@@ -97,23 +100,26 @@ impl Widget for ScrollViewer {
 
         canvas.pop_clip();
 
-        // Scrollbar
+        // Scrollbar (Enlarges from 8px to 14px on hover)
         if self.show_scrollbar && self.content_height > bounds.size.height {
-            let sb_x = bounds.origin.x + bounds.size.width - Self::SCROLLBAR_W - 2.0;
-            let track = Rect::new(sb_x, bounds.origin.y + 2.0, Self::SCROLLBAR_W, bounds.size.height - 4.0);
+            let sb_w = if self.is_thumb_hovered { Self::SCROLLBAR_HOVER_W } else { Self::SCROLLBAR_W };
+            let sb_x = bounds.origin.x + bounds.size.width - sb_w - 2.0;
+            let track = Rect::new(sb_x, bounds.origin.y + 2.0, sb_w, bounds.size.height - 4.0);
             canvas.fill_rounded_rect(track, quick_core::geometry::BorderRadius::all(RadiusScale::PILL), bt.colors.surface);
 
             let ratio = bounds.size.height / self.content_height;
-            let thumb_h = (track.size.height * ratio).max(20.0);
+            let thumb_h = (track.size.height * ratio).max(24.0);
             let max_scroll = self.max_scroll(&bounds);
             let thumb_y = if max_scroll > 0.0 {
                 track.origin.y + (self.scroll_offset / max_scroll) * (track.size.height - thumb_h)
             } else { track.origin.y };
 
+            let thumb_color = if self.is_thumb_hovered { bt.colors.accent.normal } else { bt.colors.border_strong };
+
             canvas.fill_rounded_rect(
-                Rect::new(sb_x, thumb_y, Self::SCROLLBAR_W, thumb_h),
+                Rect::new(sb_x, thumb_y, sb_w, thumb_h),
                 quick_core::geometry::BorderRadius::all(RadiusScale::PILL),
-                bt.colors.border_strong,
+                thumb_color,
             );
         }
     }
@@ -128,6 +134,11 @@ impl Widget for ScrollViewer {
                 let max = self.max_scroll(&bounds);
                 self.scroll_offset = (self.scroll_offset - dy * 40.0).clamp(0.0, max);
                 true
+            }
+            Event::Pointer(quick_core::event::PointerEvent { position, .. }) => {
+                let sb_x = bounds.origin.x + bounds.size.width - Self::SCROLLBAR_HOVER_W - 4.0;
+                self.is_thumb_hovered = position.x >= sb_x && bounds.contains(*position);
+                bounds.contains(*position)
             }
             _ => false
         }

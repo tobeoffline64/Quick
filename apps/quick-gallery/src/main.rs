@@ -65,6 +65,15 @@ fn run_headless() -> Result<(), Box<dyn std::error::Error>> {
         println!();
     }
 
+    // Noctalia Glass Theme
+    let noctalia_dark = quick_style::noctalia::NoctaliaPalette::noctalia_dark();
+    println!("🌙 Noctalia Brand Palette — Dark Mode");
+    println!("   primary   : {}  surface         : {}", noctalia_dark.primary.to_hex(), noctalia_dark.surface.to_hex());
+    println!("   secondary : {}  surface_variant : {}", noctalia_dark.secondary.to_hex(), noctalia_dark.surface_variant.to_hex());
+    println!("   tertiary  : {}  outline         : {}", noctalia_dark.tertiary.to_hex(), noctalia_dark.outline.to_hex());
+    println!("   error     : {}  hover           : {}", noctalia_dark.error.to_hex(), noctalia_dark.hover.to_hex());
+    println!();
+
     // Parse and render the gallery layout
     let gallery_content = include_str!("../gallery.quick");
     let mut ctx = DataContext::new();
@@ -110,15 +119,16 @@ fn run_headless() -> Result<(), Box<dyn std::error::Error>> {
     println!("   canvas commands       {cmd_count}  (paint calls across all gallery sections)");
     println!();
     println!("   Sections rendered:");
-    println!("   ├── Buttons       (5 variants × 2 columns)");
-    println!("   ├── Cards         (3 variants × 2 columns)");
-    println!("   ├── Selection     (Switch + Checkbox + Chip×2 × 2 columns)");
-    println!("   ├── Inputs        (TextInput + Slider × 2 columns)");
-    println!("   ├── Progress      (ProgressBar × 2 columns)");
-    println!("   └── Typography    (Caption→Display × 2 columns)");
-    println!();
-    println!("   New widgets available: TabControl, ListBox, ComboBox,");
-    println!("                          NumericUpDown, Expander, ScrollViewer");
+    println!("   ├── Base & M3 Buttons       (5 variants × 2 columns)");
+    println!("   ├── Cards                   (3 variants × 2 columns)");
+    println!("   ├── Selection Controls      (Switch + Checkbox + Chip×2 × 2 columns)");
+    println!("   ├── Inputs & Sliders        (TextInput + Slider × 2 columns)");
+    println!("   ├── Progress Bars           (ProgressBar × 2 columns)");
+    println!("   ├── Typography Scale        (Caption→Display × 2 columns)");
+    println!("   └── 🌙 Noctalia UI Suite    (FramelessTitleBar, NoctaliaBar, NoctaliaButton×5,");
+    println!("                                NoctaliaCard, CountdownRing, AnalogClock,");
+    println!("                                Segmented, NoctaliaSlider, NoctaliaGraph,");
+    println!("                                NoctaliaCalendar, NoctaliaColorPicker)");
     println!();
     println!("✅ Gallery headless showcase complete — exit 0");
     Ok(())

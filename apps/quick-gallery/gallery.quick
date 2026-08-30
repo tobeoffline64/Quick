@@ -150,5 +150,44 @@
       </VStack>
     </HStack>
 
+    <!-- SECTION: Noctalia Desktop Shell & Wayland UI Suite -->
+    <VStack style="width: 100%; padding: 20px 24px; gap: 16px; background: #070722;" theme="noctalia">
+      <Text text="🌙 NOCTALIA DESKTOP SHELL & UMBRIEL WAYLAND SUITE" style="font-size: 12px; color: #fff59b; font-weight: bold;" />
+      
+      <!-- Frameless Window TitleBar -->
+      <FramelessTitleBar title="Noctalia Desktop Shell" subtitle="v0.3 — Umbriel Wayland Compositor" />
+
+      <!-- Wayland Desktop Status Bar -->
+      <NoctaliaBar />
+
+      <!-- Glassmorphic Buttons Strip -->
+      <HStack style="gap: 12px; align-items: center;">
+        <NoctaliaButton text="Primary Gold" variant="primary" />
+        <NoctaliaButton text="Secondary" variant="secondary" />
+        <NoctaliaButton text="Ghost" variant="ghost" />
+        <NoctaliaButton text="Outline" variant="outline" />
+        <NoctaliaButton text="Danger" variant="danger" />
+      </HStack>
+
+      <!-- Glassmorphic Card containing Interactive Controls -->
+      <NoctaliaCard style="padding: 16px; gap: 16px;">
+        <HStack style="width: 100%; gap: 24px; align-items: center;">
+          <CountdownRing progress="0.75" size="130" text="75%" />
+          <AnalogClock hours="10" minutes="10" seconds="35" timezone="Noctalia Time (UTC+0)" />
+          <VStack style="gap: 12px;">
+            <Segmented items="Standard,Scientific,Programmer" selected="0" />
+            <NoctaliaSlider min="0" max="100" value="80" icon="🔊" />
+          </VStack>
+        </HStack>
+      </NoctaliaCard>
+
+      <!-- Metrics Graph, Calendar & Color Picker Strip -->
+      <HStack style="gap: 20px;">
+        <NoctaliaGraph label="CPU Load" />
+        <NoctaliaCalendar />
+        <NoctaliaColorPicker />
+      </HStack>
+    </VStack>
+
   </VStack>
 </App>

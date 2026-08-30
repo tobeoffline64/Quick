@@ -63,6 +63,8 @@ pub fn build_ui_tree(
     if let Some(ref theme_name) = doc.root.attributes.get("theme") {
         let theme = match theme_name.as_str() {
             "material-you" | "m3" => ThemePackage::material_you(),
+            "noctalia" | "noctalia-dark" => ThemePackage::noctalia(),
+            "noctalia-light" => ThemePackage::noctalia_light(),
             "nord" => ThemePackage::nord(),
             _ => ThemePackage::material_you(),
         };
@@ -349,6 +351,147 @@ fn build_node(
                 vstack.add_child(child_widget);
             }
             Box::new(vstack)
+        }
+        "NoctaliaButton" => {
+            let text_val = node.text.as_deref().unwrap_or("Button");
+            let mut btn = quick_widgets::noctalia_button::NoctaliaButton::new(text_val);
+            let variant = match node.attributes.get("variant").map(|s| s.to_lowercase()).as_deref() {
+                Some("secondary") => quick_widgets::noctalia_button::NoctaliaButtonVariant::Secondary,
+                Some("ghost") => quick_widgets::noctalia_button::NoctaliaButtonVariant::Ghost,
+                Some("outline") => quick_widgets::noctalia_button::NoctaliaButtonVariant::Outline,
+                Some("danger") => quick_widgets::noctalia_button::NoctaliaButtonVariant::Danger,
+                _ => quick_widgets::noctalia_button::NoctaliaButtonVariant::Primary,
+            };
+            btn.variant = variant;
+            btn.id = node.id.clone();
+            btn.classes = classes;
+            btn.style.merge_with(&computed_style);
+
+            let action_opt = node.on_click.as_ref()
+                .or_else(|| node.attributes.get("onclick"))
+                .or_else(|| node.attributes.get("on_click"));
+
+            if let Some(action_name) = action_opt {
+                let clean_name = action_name.trim_end_matches("()").trim();
+                if let Some(handler) = data_ctx.action_handlers.get(clean_name) {
+                    let handler_cl = handler.clone();
+                    btn.on_click = Some(Box::new(move || {
+                        (handler_cl.borrow_mut())();
+                    }));
+                }
+            }
+            Box::new(btn)
+        }
+        "NoctaliaCard" => {
+            let mut card = quick_widgets::noctalia_card::NoctaliaCard::new();
+            card.id = node.id.clone();
+            card.classes = classes;
+            card.style.merge_with(&computed_style);
+
+            for child_node in &node.children {
+                let child_widget = build_node(child_node, data_ctx, stylesheet);
+                card.children.push(child_widget);
+            }
+            Box::new(card)
+        }
+        "NoctaliaSlider" => {
+            let val = node.attributes.get("value")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(50.0);
+            let min = node.attributes.get("min").and_then(|v| v.parse().ok()).unwrap_or(0.0);
+            let max = node.attributes.get("max").and_then(|v| v.parse().ok()).unwrap_or(100.0);
+
+            let mut slider = quick_widgets::noctalia_slider::NoctaliaSlider::new(min, max, val);
+            if let Some(icon) = node.attributes.get("icon") {
+                slider.icon_text = Some(icon.clone());
+            }
+            slider.id = node.id.clone();
+            slider.classes = classes;
+            slider.style.merge_with(&computed_style);
+            Box::new(slider)
+        }
+        "CountdownRing" => {
+            let prog = node.attributes.get("progress")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0.65);
+            let mut ring = quick_widgets::countdown_ring::CountdownRing::new(prog);
+            if let Some(size) = node.attributes.get("size").and_then(|v| v.parse().ok()) {
+                ring.size = size;
+            }
+            if let Some(txt) = node.text.as_deref() {
+                ring.center_text = Some(txt.to_string());
+            }
+            ring.id = node.id.clone();
+            ring.classes = classes;
+            ring.style.merge_with(&computed_style);
+            Box::new(ring)
+        }
+        "AnalogClock" => {
+            let h = node.attributes.get("hours").and_then(|v| v.parse().ok()).unwrap_or(10);
+            let m = node.attributes.get("minutes").and_then(|v| v.parse().ok()).unwrap_or(10);
+            let s = node.attributes.get("seconds").and_then(|v| v.parse().ok()).unwrap_or(30);
+            let mut clock = quick_widgets::analog_clock::AnalogClock::new(h, m, s);
+            if let Some(tz) = node.attributes.get("timezone") {
+                clock.timezone_label = Some(tz.clone());
+            }
+            clock.id = node.id.clone();
+            clock.classes = classes;
+            clock.style.merge_with(&computed_style);
+            Box::new(clock)
+        }
+        "Segmented" => {
+            let items_str = node.attributes.get("items").cloned().unwrap_or_else(|| "Option 1,Option 2,Option 3".into());
+            let items: Vec<String> = items_str.split(',').map(|s| s.trim().to_string()).collect();
+            let sel = node.attributes.get("selected").and_then(|v| v.parse().ok()).unwrap_or(0);
+            let mut seg = quick_widgets::segmented::Segmented::new(items, sel);
+            seg.id = node.id.clone();
+            seg.classes = classes;
+            seg.style.merge_with(&computed_style);
+            Box::new(seg)
+        }
+        "NoctaliaGraph" => {
+            let values = vec![20.0, 35.0, 50.0, 45.0, 70.0, 65.0, 85.0, 90.0];
+            let mut graph = quick_widgets::noctalia_graph::NoctaliaGraph::new(values);
+            if let Some(lbl) = node.attributes.get("label") {
+                graph.label = Some(lbl.clone());
+            }
+            graph.id = node.id.clone();
+            graph.classes = classes;
+            graph.style.merge_with(&computed_style);
+            Box::new(graph)
+        }
+        "NoctaliaCalendar" => {
+            let mut cal = quick_widgets::noctalia_calendar::NoctaliaCalendar::new("August", 2026, 30);
+            cal.id = node.id.clone();
+            cal.classes = classes;
+            cal.style.merge_with(&computed_style);
+            Box::new(cal)
+        }
+        "NoctaliaColorPicker" => {
+            let c = quick_core::geometry::Color::from_rgb(255, 245, 155);
+            let mut picker = quick_widgets::noctalia_color_picker::NoctaliaColorPicker::new(c);
+            picker.id = node.id.clone();
+            picker.classes = classes;
+            picker.style.merge_with(&computed_style);
+            Box::new(picker)
+        }
+        "NoctaliaBar" => {
+            let mut bar = quick_widgets::noctalia_bar::NoctaliaBar::new();
+            bar.id = node.id.clone();
+            bar.classes = classes;
+            bar.style.merge_with(&computed_style);
+            Box::new(bar)
+        }
+        "FramelessTitleBar" => {
+            let title = node.attributes.get("title").cloned().unwrap_or_else(|| "Noctalia Window".into());
+            let mut tb = quick_widgets::frameless_titlebar::FramelessTitleBar::new(title);
+            if let Some(sub) = node.attributes.get("subtitle") {
+                tb.subtitle = Some(sub.clone());
+            }
+            tb.id = node.id.clone();
+            tb.classes = classes;
+            tb.style.merge_with(&computed_style);
+            Box::new(tb)
         }
         _ => {
             let mut container = Container::new();
