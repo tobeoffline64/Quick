@@ -18,10 +18,12 @@ pub struct Container {
 
 impl Container {
     pub fn new() -> Self {
+        let mut style = Style::default();
+        style.flex_direction = Some(quick_style::property::FlexDirection::Column);
         Self {
             id: None,
             classes: Vec::new(),
-            style: Style::default(),
+            style,
             children: Vec::new(),
             child_nodes: Vec::new(),
             child_bounds: Vec::new(),

@@ -24,6 +24,7 @@ pub struct WindowRunner<C: AppController> {
     window: Option<Arc<Window>>,
     surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
     current_size: Size,
+    scale_factor: f32,
 }
 
 impl<C: AppController> WindowRunner<C> {
@@ -36,7 +37,12 @@ impl<C: AppController> WindowRunner<C> {
             window: None,
             surface: None,
             current_size: size,
+            scale_factor: 1.0,
         }
+    }
+
+    pub fn scale_factor(&self) -> f32 {
+        self.scale_factor
     }
 
     pub fn run(mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -64,6 +70,7 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
         match event_loop.create_window(attributes) {
             Ok(w) => {
                 let window_arc = Arc::new(w);
+                self.scale_factor = window_arc.scale_factor() as f32;
                 self.window = Some(window_arc.clone());
 
                 match softbuffer::Context::new(window_arc.clone()) {
@@ -91,6 +98,14 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
+            }
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                self.scale_factor = scale_factor as f32;
+                if let Some(ref window) = self.window {
+                    let phys = window.inner_size();
+                    self.current_size = Size::new(phys.width as f32, phys.height as f32);
+                    window.request_redraw();
+                }
             }
             WindowEvent::Resized(physical_size) => {
                 let w = physical_size.width as f32;
