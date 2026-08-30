@@ -1,3 +1,4 @@
+use quick_style::base::base_theme;
 use crate::widget::Widget;
 use quick_core::event::{Event, FocusEvent, KeyEvent, KeyState, PointerButton, PointerEvent, PointerPhase};
 use quick_core::geometry::{BorderRadius, Color, Insets, Point, Rect};
@@ -129,20 +130,21 @@ impl Widget for TextInput {
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
         let radius = self.style.border_radius.unwrap_or_else(|| BorderRadius::all(4.0));
 
+        let bt = base_theme();
         // 1. Container Background
         let bg_color = if self.variant == InputVariant::Outlined {
             self.style.background_color.unwrap_or(Color::TRANSPARENT)
         } else {
-            self.style.background_color.unwrap_or_else(|| Color::from_rgb(30, 30, 46))
+            self.style.background_color.unwrap_or(bt.colors.surface)
         };
         canvas.fill_rounded_rect(bounds, radius, bg_color);
 
-        // 2. Border Stroke (1.0px unfocused, 2.0px focused M3 active indicator)
+        // 2. Border Stroke (1.0px unfocused, 2.0px focused active indicator)
         let (border_color, border_width) = if self.is_focused {
-            (Color::from_hex("#89b4fa").unwrap_or(Color::BLUE), 2.0)
+            (bt.colors.accent.normal, 2.0)
         } else {
             (
-                self.style.border_color.unwrap_or_else(|| Color::from_hex("#45475a").unwrap_or(Color::from_rgb(128, 128, 128))),
+                self.style.border_color.unwrap_or(bt.colors.border),
                 self.style.border_width.unwrap_or(1.0),
             )
         };

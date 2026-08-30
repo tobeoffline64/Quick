@@ -1,4 +1,4 @@
-use quick_core::geometry::{Color, Rect, Size};
+use quick_core::geometry::{Rect, Size};
 use quick_layout::engine::LayoutEngine;
 use quick_markup::builder::{build_ui_tree, DataContext};
 use quick_markup::quick_parser::{parse_quick, parse_quick_file};
@@ -87,7 +87,8 @@ impl App {
     /// Run a layout & paint cycle on the widget tree for the given window size.
     pub fn render_frame(&mut self, window_size: Size) -> &Canvas {
         self.canvas.reset();
-        self.canvas.clear(Color::from_hex("#11111b").unwrap_or(Color::BLACK));
+        let bt = quick_style::base::base_theme();
+        self.canvas.clear(bt.colors.bg);
 
         if let Some(ref mut root) = self.root {
             self.layout_engine.reset();

@@ -153,7 +153,7 @@ mod tests {
         let collapsed_cmds = canvas.commands().len();
         assert!(collapsed_cmds > 0);
 
-        let mut exp2 = Expander::new("Section").expanded();
+        let exp2 = Expander::new("Section").expanded();
         let mut canvas2 = quick_render::canvas::Canvas::new();
         exp2.paint(&mut canvas2, Rect::new(0.0, 0.0, 300.0, 200.0));
         assert!(canvas2.commands().len() > collapsed_cmds);

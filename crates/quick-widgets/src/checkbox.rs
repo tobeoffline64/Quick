@@ -1,6 +1,7 @@
+use quick_style::base::base_theme;
 use crate::widget::Widget;
 use quick_core::event::{Event, PointerButton, PointerEvent, PointerPhase};
-use quick_core::geometry::{BorderRadius, Color, Point, Rect};
+use quick_core::geometry::{BorderRadius, Point, Rect};
 use quick_core::signals::Signal;
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
@@ -99,26 +100,27 @@ impl Widget for Checkbox {
         let box_rect = Rect::new(box_x, box_y, box_size, box_size);
         let radius = self.style.border_radius.unwrap_or_else(|| BorderRadius::all(4.0));
 
+        let bt = base_theme();
         if is_indet {
-            let fill_color = self.style.background_color.unwrap_or_else(|| Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
+            let fill_color = self.style.background_color.unwrap_or(bt.colors.accent.normal);
             canvas.fill_rounded_rect(box_rect, radius, fill_color);
 
             let dash_y = box_y + box_size / 2.0;
             let p_start = Point::new(box_x + 4.0, dash_y);
             let p_end = Point::new(box_x + box_size - 4.0, dash_y);
-            canvas.draw_line(p_start, p_end, Color::WHITE, 2.0);
+            canvas.draw_line(p_start, p_end, bt.colors.accent.on_accent, 2.0);
         } else if is_on {
-            let fill_color = self.style.background_color.unwrap_or_else(|| Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
+            let fill_color = self.style.background_color.unwrap_or(bt.colors.accent.normal);
             canvas.fill_rounded_rect(box_rect, radius, fill_color);
 
             // Draw checkmark stroke
             let p1 = Point::new(box_x + 4.5, box_y + 10.0);
             let p2 = Point::new(box_x + 8.5, box_y + 14.5);
             let p3 = Point::new(box_x + 15.5, box_y + 5.5);
-            canvas.draw_line(p1, p2, Color::WHITE, 2.0);
-            canvas.draw_line(p2, p3, Color::WHITE, 2.0);
+            canvas.draw_line(p1, p2, bt.colors.accent.on_accent, 2.0);
+            canvas.draw_line(p2, p3, bt.colors.accent.on_accent, 2.0);
         } else {
-            let border_color = self.style.border_color.unwrap_or_else(|| Color::from_hex("#79747E").unwrap_or(Color::from_rgb(121, 116, 126)));
+            let border_color = self.style.border_color.unwrap_or(bt.colors.border_strong);
             canvas.stroke_rounded_rect(box_rect, radius, border_color, 2.0);
         }
     }

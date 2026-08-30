@@ -1,6 +1,7 @@
+use quick_style::base::base_theme;
 use crate::widget::Widget;
 use quick_core::event::{Event, PointerButton, PointerEvent, PointerPhase};
-use quick_core::geometry::{BorderRadius, Color, Rect};
+use quick_core::geometry::{BorderRadius, Rect};
 use quick_core::signals::Signal;
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
@@ -140,15 +141,16 @@ impl Widget for Slider {
         let track_w = (bounds.size.width - pad * 2.0).max(0.0);
         let track_radius = BorderRadius::all(track_h / 2.0);
 
+        let bt = base_theme();
         // 1. Inactive track (full width background)
         let inactive_rect = Rect::new(bounds.origin.x + pad, track_y, track_w, track_h);
-        canvas.fill_rounded_rect(inactive_rect, track_radius, Color::from_hex("#36343B").unwrap_or(Color::from_rgb(54, 52, 59)));
+        canvas.fill_rounded_rect(inactive_rect, track_radius, bt.colors.surface_raised);
 
         // 2. Active track (left side up to thumb)
         let active_w = track_w * ratio;
         if active_w > 0.0 {
             let active_rect = Rect::new(bounds.origin.x + pad, track_y, active_w, track_h);
-            let active_color = self.style.background_color.unwrap_or_else(|| Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
+            let active_color = self.style.background_color.unwrap_or(bt.colors.accent.normal);
             canvas.fill_rounded_rect(active_rect, track_radius, active_color);
         }
 
@@ -160,15 +162,14 @@ impl Widget for Slider {
 
         // 4. State Layer Halo (Hover / Dragged)
         if (self.is_dragging || self.is_hovered) && !self.is_disabled {
-            let halo_size = 40.0;
+            let halo_size = 32.0;
             let halo_rect = Rect::new(thumb_x - halo_size / 2.0, thumb_y - halo_size / 2.0, halo_size, halo_size);
-            let halo_alpha = if self.is_dragging { 0.16 } else { 0.08 };
-            let halo_color = Color::from_rgba(103, 80, 164, (halo_alpha * 255.0) as u8);
+            let halo_color = bt.colors.hover_overlay;
             canvas.fill_rounded_rect(halo_rect, BorderRadius::all(halo_size / 2.0), halo_color);
         }
 
         // 5. Thumb Circle
-        let thumb_color = Color::from_hex("#D0BCFF").unwrap_or(Color::from_rgb(208, 188, 255));
+        let thumb_color = bt.colors.accent.normal;
         canvas.fill_rounded_rect(thumb_rect, BorderRadius::all(thumb_r), thumb_color);
     }
 

@@ -1,3 +1,4 @@
+use quick_style::base::base_theme;
 use crate::widget::Widget;
 use quick_core::geometry::{Color, Point, Rect};
 use quick_core::signals::Signal;
@@ -118,7 +119,8 @@ impl Widget for Text {
             }
         }
 
-        let color = self.style.text_color.unwrap_or(Color::WHITE);
+        let bt = base_theme();
+        let color = self.style.text_color.unwrap_or(bt.colors.text_primary);
         let font_size = self.style.font_size.unwrap_or(14.0);
         let pad_left = self.style.padding.map(|p| p.left).unwrap_or(0.0);
         let pad_right = self.style.padding.map(|p| p.right).unwrap_or(0.0);

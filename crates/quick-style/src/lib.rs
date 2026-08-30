@@ -1,5 +1,6 @@
 pub mod base;
 pub mod color;
+pub mod fonts;
 pub mod parser;
 pub mod property;
 pub mod rule;

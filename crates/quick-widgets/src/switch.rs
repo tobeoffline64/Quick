@@ -1,3 +1,4 @@
+use quick_style::base::base_theme;
 use crate::widget::Widget;
 use quick_core::event::{Event, PointerButton, PointerEvent, PointerPhase};
 use quick_core::geometry::{BorderRadius, Color, Rect};
@@ -84,18 +85,19 @@ impl Widget for Switch {
 
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
         let is_on = self.checked.get();
+        let bt = base_theme();
 
         // 1. Resolve Colors
         let track_color = if is_on {
-            self.style.background_color.unwrap_or_else(|| Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)))
+            self.style.background_color.unwrap_or(bt.colors.accent.normal)
         } else {
-            Color::from_hex("#36343B").unwrap_or(Color::from_rgb(54, 52, 59))
+            bt.colors.surface_raised
         };
 
         let thumb_color = if is_on {
-            Color::from_hex("#FFFFFF").unwrap_or(Color::WHITE)
+            bt.colors.accent.on_accent
         } else {
-            Color::from_hex("#938F99").unwrap_or(Color::from_rgb(147, 143, 153))
+            bt.colors.text_secondary
         };
 
         // 2. Draw Track Pill

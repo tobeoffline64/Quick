@@ -1,5 +1,6 @@
+use quick_style::base::base_theme;
 use crate::widget::Widget;
-use quick_core::geometry::{BorderRadius, Color, Rect};
+use quick_core::geometry::{BorderRadius, Rect};
 use quick_core::signals::Signal;
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
@@ -95,11 +96,12 @@ impl Widget for ProgressBar {
             .border_radius
             .unwrap_or_else(|| BorderRadius::all(bounds.size.height / 2.0));
 
+        let bt = base_theme();
         // 1. Inactive Background Track
         let track_color = self
             .style
             .border_color
-            .unwrap_or_else(|| Color::from_hex("#36343B").unwrap_or(Color::from_rgb(54, 52, 59)));
+            .unwrap_or(bt.colors.surface_raised);
         canvas.fill_rounded_rect(bounds, radius, track_color);
 
         // 2. Active Indicator
@@ -107,7 +109,7 @@ impl Widget for ProgressBar {
             .style
             .background_color
             .or(self.style.text_color)
-            .unwrap_or_else(|| Color::from_hex("#6750A4").unwrap_or(Color::from_rgb(103, 80, 164)));
+            .unwrap_or(bt.colors.accent.normal);
 
         if self.is_indeterminate {
             // Indeterminate animated pulse mode

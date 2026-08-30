@@ -5,7 +5,7 @@ use super::palette::{AccentColors, NeutralPalette};
 use super::radius::RadiusScale;
 use super::spacing::SpacingScale;
 use super::system::{ColorScheme, SystemColors};
-use super::typography::TypeScale;
+use super::typography::{FontStack, TypeScale};
 use quick_core::geometry::Color;
 
 /// Resolved set of semantic colors for a single color scheme (light OR dark).
@@ -106,6 +106,8 @@ pub struct BaseTheme {
     pub radius: RadiusScaleRef,
     pub spacing: SpacingScaleRef,
     pub type_scale: TypeScaleRef,
+    /// Resolved font stack for this platform (Inter on Linux/Win, -apple-system on macOS).
+    pub font_stack: FontStack,
 }
 
 /// Snapshot of the radius scale (for ergonomic access).
@@ -179,6 +181,7 @@ impl BaseTheme {
             radius:     RadiusScaleRef::default(),
             spacing:    SpacingScaleRef::default(),
             type_scale: TypeScaleRef::default(),
+            font_stack: FontStack::for_current_platform(),
         }
     }
 
@@ -203,9 +206,11 @@ impl BaseTheme {
         let r = &self.radius;
         let s = &self.spacing;
         let t = &self.type_scale;
+        let font_css = self.font_stack.to_css_value();
         format!(
             ":root {{\n\
             /* Base Theme: {scheme} */\n\
+            --q-font-family: {font};\n\
             --q-bg: {bg};\n\
             --q-surface: {surf};\n\
             --q-border: {border};\n\
@@ -234,6 +239,7 @@ impl BaseTheme {
             --q-font-display: {f_disp}px;\n\
             }}",
             scheme = if self.is_dark() { "dark" } else { "light" },
+            font   = font_css,
             bg     = c.bg.to_hex(),
             surf   = c.surface.to_hex(),
             border = c.border.to_hex(),

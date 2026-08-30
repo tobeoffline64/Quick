@@ -39,6 +39,9 @@ fn run_headless() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Type scale     : caption={} body={} title={} display={}",
         bt.type_scale.caption, bt.type_scale.body,
         bt.type_scale.title, bt.type_scale.display);
+    println!("   Font stack     : primary='{}', fallback=[{}]",
+        bt.font_stack.primary,
+        bt.font_stack.families.join(", "));
     println!();
 
     // Generate CSS custom properties
