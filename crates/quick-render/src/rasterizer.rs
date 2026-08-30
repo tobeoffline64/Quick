@@ -205,7 +205,7 @@ impl SoftwareRasterizer {
     fn draw_text(buffer: &mut [u32], width: u32, height: u32, text: &str, origin: Point, color: Color, font_size: f32) {
         let scale = (font_size / 14.0).max(1.0);
         let mut cur_x = origin.x as i32;
-        let cur_y = (origin.y - font_size * 0.8) as i32;
+        let mut cur_y = (origin.y - font_size * 0.8) as i32;
 
         for ch in text.chars() {
             if ch == '\n' {
