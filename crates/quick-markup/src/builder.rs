@@ -352,6 +352,46 @@ fn build_node(
             }
             Box::new(vstack)
         }
+        "TabControl" => {
+            let tab_labels = node.attributes.get("tabs")
+                .cloned()
+                .unwrap_or_else(|| "Base,Material You,Noctalia".into());
+            let labels: Vec<String> = tab_labels.split(',').map(|s| s.trim().to_string()).collect();
+            let sel = node.attributes.get("selected").and_then(|v| v.parse().ok()).unwrap_or(0);
+
+            let mut tc = quick_widgets::tab_control::TabControl::new();
+            tc.selected_index = sel;
+            for label in labels {
+                tc.tabs.push(quick_widgets::tab_control::TabItem::new(label));
+            }
+
+            for child_node in &node.children {
+                let child_widget = build_node(child_node, data_ctx, stylesheet);
+                tc.children.push(child_widget);
+            }
+
+            tc.id = node.id.clone();
+            tc.classes = classes;
+            tc.style.merge_with(&computed_style);
+            Box::new(tc)
+        }
+        "ScrollViewer" => {
+            let mut sv = quick_widgets::scroll_viewer::ScrollViewer::new();
+            let ch = node.attributes.get("content_height")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(1200.0);
+            sv.content_height = ch;
+
+            for child_node in &node.children {
+                let child_widget = build_node(child_node, data_ctx, stylesheet);
+                sv.children.push(child_widget);
+            }
+
+            sv.id = node.id.clone();
+            sv.classes = classes;
+            sv.style.merge_with(&computed_style);
+            Box::new(sv)
+        }
         "NoctaliaButton" => {
             let text_val = node.text.as_deref().unwrap_or("Button");
             let mut btn = quick_widgets::noctalia_button::NoctaliaButton::new(text_val);

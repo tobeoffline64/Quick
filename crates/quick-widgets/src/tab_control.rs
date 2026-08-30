@@ -6,7 +6,7 @@ use quick_core::event::{Event, PointerPhase};
 use quick_core::geometry::{Point, Rect};
 use quick_layout::engine::LayoutEngine;
 use quick_render::canvas::Canvas;
-use quick_style::base::{base_theme, SpacingScale, TypeScale};
+use quick_style::base::{base_theme, SpacingScale};
 use quick_style::property::Style;
 use taffy::prelude::NodeId;
 use taffy::TaffyError;
@@ -32,6 +32,9 @@ pub struct TabControl {
     pub tabs: Vec<TabItem>,
     pub selected_index: usize,
     pub tab_height: f32,
+    pub children: Vec<Box<dyn Widget>>,
+    pub on_tab_change: Option<Box<dyn FnMut(usize)>>,
+    child_nodes: Vec<NodeId>,
     bounds: Rect,
 }
 
@@ -46,7 +49,10 @@ impl TabControl {
             style,
             tabs: Vec::new(),
             selected_index: 0,
-            tab_height: 40.0,
+            tab_height: 44.0,
+            children: Vec::new(),
+            on_tab_change: None,
+            child_nodes: Vec::new(),
             bounds: Rect::ZERO,
         }
     }
@@ -56,9 +62,20 @@ impl TabControl {
         self
     }
 
+    pub fn add_page(mut self, tab: TabItem, child: Box<dyn Widget>) -> Self {
+        self.tabs.push(tab);
+        self.children.push(child);
+        self
+    }
+
+    pub fn on_change<F: FnMut(usize) + 'static>(mut self, handler: F) -> Self {
+        self.on_tab_change = Some(Box::new(handler));
+        self
+    }
+
     fn tab_width(&self, bounds: &Rect) -> f32 {
-        if self.tabs.is_empty() { return 120.0; }
-        (bounds.size.width / self.tabs.len() as f32).max(80.0).min(200.0)
+        if self.tabs.is_empty() { return 140.0; }
+        (bounds.size.width / self.tabs.len() as f32).max(120.0).min(280.0)
     }
 }
 
@@ -88,11 +105,20 @@ impl Widget for TabControl {
     }
 
     fn build_layout(&mut self, engine: &mut LayoutEngine) -> Result<NodeId, TaffyError> {
-        engine.new_leaf(&self.style)
+        self.child_nodes.clear();
+        for child in &mut self.children {
+            let child_node = child.build_layout(engine)?;
+            self.child_nodes.push(child_node);
+        }
+        engine.new_with_children(&self.style, &self.child_nodes)
     }
 
-    fn update_layout(&mut self, _engine: &LayoutEngine, origin: Point) {
+    fn update_layout(&mut self, engine: &LayoutEngine, origin: Point) {
         self.bounds = Rect::new(origin.x, origin.y, self.bounds.size.width, self.bounds.size.height);
+        let content_origin = Point::new(origin.x, origin.y + self.tab_height);
+        for child in &mut self.children {
+            child.update_layout(engine, content_origin);
+        }
     }
 
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
@@ -118,42 +144,67 @@ impl Widget for TabControl {
 
             // Tab label
             let text_color = if is_selected { bt.colors.accent.normal } else { bt.colors.text_secondary };
+            let font_size = if is_selected { 13.0 } else { 12.0 };
+            let tw = (tab.label.chars().count() as f32) * font_size * 0.55;
+            let tx = tab_x + ((tab_w - tw) / 2.0).max(SpacingScale::MD);
+            let ty = bounds.origin.y + (self.tab_height + font_size * 0.75) / 2.0;
+
             canvas.draw_text(
                 &tab.label,
-                Point::new(tab_x + SpacingScale::LG, bounds.origin.y + self.tab_height / 2.0 - TypeScale::BODY / 2.0),
+                Point::new(tx, ty),
                 text_color,
-                TypeScale::BODY,
+                font_size,
                 None,
             );
 
-            // Active underline
+            // Active underline indicator
             if is_selected {
                 canvas.fill_rect(
-                    Rect::new(tab_x + 2.0, bounds.origin.y + self.tab_height - 3.0, tab_w - 4.0, 3.0),
+                    Rect::new(tab_x + 4.0, bounds.origin.y + self.tab_height - 3.0, tab_w - 8.0, 3.0),
                     bt.colors.accent.normal,
                 );
             }
         }
 
         // Content area
-        let content_y = bounds.origin.y + self.tab_height + SpacingScale::MD;
-        let content_h = bounds.size.height - self.tab_height - SpacingScale::MD;
-        canvas.fill_rect(
-            Rect::new(bounds.origin.x, content_y, bounds.size.width, content_h),
-            bt.colors.bg,
-        );
+        let content_y = bounds.origin.y + self.tab_height;
+        let content_h = (bounds.size.height - self.tab_height).max(0.0);
+        let content_rect = Rect::new(bounds.origin.x, content_y, bounds.size.width, content_h);
+
+        canvas.fill_rect(content_rect, bt.colors.bg);
+
+        // Paint selected tab child
+        if let Some(child) = self.children.get(self.selected_index) {
+            child.paint(canvas, content_rect);
+        }
     }
 
     fn handle_event(&mut self, event: &Event, bounds: Rect) -> bool {
         if let Event::Pointer(p) = event {
-            if p.phase == PointerPhase::Up && bounds.contains(p.position) {
+            if bounds.contains(p.position) {
                 if p.position.y < bounds.origin.y + self.tab_height {
-                    let tab_w = self.tab_width(&bounds);
-                    let rel_x = p.position.x - bounds.origin.x;
-                    let idx = (rel_x / tab_w) as usize;
-                    if idx < self.tabs.len() {
-                        self.selected_index = idx;
-                        return true;
+                    if p.phase == PointerPhase::Down || p.phase == PointerPhase::Up {
+                        let tab_w = self.tab_width(&bounds);
+                        let rel_x = p.position.x - bounds.origin.x;
+                        let idx = (rel_x / tab_w) as usize;
+                        if idx < self.tabs.len() {
+                            if self.selected_index != idx {
+                                self.selected_index = idx;
+                                if let Some(ref mut handler) = self.on_tab_change {
+                                    handler(idx);
+                                }
+                            }
+                            return true;
+                        }
+                    }
+                    return true;
+                } else {
+                    let content_y = bounds.origin.y + self.tab_height;
+                    let content_h = (bounds.size.height - self.tab_height).max(0.0);
+                    let content_rect = Rect::new(bounds.origin.x, content_y, bounds.size.width, content_h);
+
+                    if let Some(child) = self.children.get_mut(self.selected_index) {
+                        return child.handle_event(event, content_rect);
                     }
                 }
             }
