@@ -1,0 +1,24 @@
+[package]
+name = "quick"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+quick-core = { path = "../quick-core" }
+quick-style = { path = "../quick-style" }
+quick-render = { path = "../quick-render" }
+quick-window = { path = "../quick-window" }
+quick-layout = { path = "../quick-layout" }
+quick-widgets = { path = "../quick-widgets" }
+quick-markup = { path = "../quick-markup" }
+taffy = { workspace = true }
+winit = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+default = ["mimalloc"]
+mimalloc = ["quick-core/mimalloc"]
+skia = ["quick-render/skia"]

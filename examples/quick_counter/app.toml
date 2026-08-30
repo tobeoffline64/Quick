@@ -1,0 +1,62 @@
+styles = """
+Text.title {
+    font-size: 24px;
+    color: #cdd6f4;
+    font-weight: bold;
+}
+Text.counter {
+    font-size: 32px;
+    color: #a6e3a1;
+    font-weight: bold;
+}
+Button.btn-primary {
+    background: #a6e3a1;
+    color: #11111b;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+Button.btn-primary:hover {
+    background: #94e2d5;
+}
+Button.btn-secondary {
+    background: #45475a;
+    color: #cdd6f4;
+    padding: 10px 24px;
+    border-radius: 8px;
+}
+"""
+
+[root]
+type = "VStack"
+id = "main-container"
+style = "padding: 32px; gap: 16px; align-items: center; justify-content: center; background: #181825;"
+
+[[root.children]]
+type = "Text"
+class = "title"
+text = "⚡ Quick Framework TOML UI Demo"
+
+[[root.children]]
+type = "Text"
+id = "count-display"
+class = "counter"
+text = "$counter_display"
+
+[[root.children]]
+type = "HStack"
+style = "gap: 12px; margin: 16px;"
+
+[[root.children.children]]
+type = "Button"
+id = "btn-decrement"
+class = "btn-secondary"
+text = "➖ Decrement"
+on_click = "decrement"
+
+[[root.children.children]]
+type = "Button"
+id = "btn-increment"
+class = "btn-primary"
+text = "➕ Increment"
+on_click = "increment"
