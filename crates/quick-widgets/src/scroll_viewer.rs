@@ -19,6 +19,8 @@ pub struct ScrollViewer {
     pub show_scrollbar: bool,
     pub children: Vec<Box<dyn Widget>>,
     pub is_thumb_hovered: bool,
+    child_nodes: Vec<NodeId>,
+    child_bounds: Vec<Rect>,
     bounds: Rect,
 }
 
@@ -31,7 +33,10 @@ impl ScrollViewer {
             id: None, classes: Vec::new(), style,
             scroll_offset: 0.0, content_height: 0.0,
             show_scrollbar: true, children: Vec::new(),
-            is_thumb_hovered: false, bounds: Rect::ZERO,
+            is_thumb_hovered: false,
+            child_nodes: Vec::new(),
+            child_bounds: Vec::new(),
+            bounds: Rect::ZERO,
         }
     }
 
@@ -74,11 +79,31 @@ impl Widget for ScrollViewer {
     }
 
     fn build_layout(&mut self, engine: &mut LayoutEngine) -> Result<NodeId, TaffyError> {
-        engine.new_leaf(&self.style)
+        self.child_nodes.clear();
+        for child in &mut self.children {
+            let child_node = child.build_layout(engine)?;
+            self.child_nodes.push(child_node);
+        }
+        engine.new_with_children(&self.style, &self.child_nodes)
     }
 
-    fn update_layout(&mut self, _engine: &LayoutEngine, origin: Point) {
+    fn update_layout(&mut self, engine: &LayoutEngine, origin: Point) {
         self.bounds = Rect::new(origin.x, origin.y, self.bounds.size.width, self.bounds.size.height);
+        self.child_bounds.clear();
+        for (i, child) in self.children.iter_mut().enumerate() {
+            if let Some(&node_id) = self.child_nodes.get(i) {
+                if let Ok(rel_layout) = engine.get_layout(node_id) {
+                    let abs_bounds = Rect::new(
+                        origin.x + rel_layout.origin.x,
+                        origin.y + rel_layout.origin.y,
+                        rel_layout.size.width,
+                        rel_layout.size.height,
+                    );
+                    self.child_bounds.push(abs_bounds);
+                    child.update_layout(engine, abs_bounds.origin);
+                }
+            }
+        }
     }
 
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
@@ -89,13 +114,15 @@ impl Widget for ScrollViewer {
         canvas.fill_rect(bounds, bt.colors.bg);
 
         // Paint children (offset by scroll)
-        for child in &self.children {
-            let child_bounds = Rect::new(
-                bounds.origin.x, bounds.origin.y - self.scroll_offset,
-                bounds.size.width - if self.show_scrollbar { Self::SCROLLBAR_HOVER_W + 2.0 } else { 0.0 },
-                self.content_height,
+        for (i, child) in self.children.iter().enumerate() {
+            let child_b = self.child_bounds.get(i).copied().unwrap_or(bounds);
+            let offset_bounds = Rect::new(
+                child_b.origin.x,
+                child_b.origin.y - self.scroll_offset,
+                child_b.size.width,
+                child_b.size.height,
             );
-            child.paint(canvas, child_bounds);
+            child.paint(canvas, offset_bounds);
         }
 
         canvas.pop_clip();
@@ -138,9 +165,36 @@ impl Widget for ScrollViewer {
             Event::Pointer(quick_core::event::PointerEvent { position, .. }) => {
                 let sb_x = bounds.origin.x + bounds.size.width - Self::SCROLLBAR_HOVER_W - 4.0;
                 self.is_thumb_hovered = position.x >= sb_x && bounds.contains(*position);
+
+                for (i, child) in self.children.iter_mut().enumerate() {
+                    let child_b = self.child_bounds.get(i).copied().unwrap_or(bounds);
+                    let offset_bounds = Rect::new(
+                        child_b.origin.x,
+                        child_b.origin.y - self.scroll_offset,
+                        child_b.size.width,
+                        child_b.size.height,
+                    );
+                    if offset_bounds.contains(*position) && child.handle_event(event, offset_bounds) {
+                        return true;
+                    }
+                }
                 bounds.contains(*position)
             }
-            _ => false
+            _ => {
+                for (i, child) in self.children.iter_mut().enumerate() {
+                    let child_b = self.child_bounds.get(i).copied().unwrap_or(bounds);
+                    let offset_bounds = Rect::new(
+                        child_b.origin.x,
+                        child_b.origin.y - self.scroll_offset,
+                        child_b.size.width,
+                        child_b.size.height,
+                    );
+                    if child.handle_event(event, offset_bounds) {
+                        return true;
+                    }
+                }
+                false
+            }
         }
     }
 }

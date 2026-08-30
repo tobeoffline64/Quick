@@ -110,7 +110,7 @@ impl Widget for TabControl {
             let child_node = child.build_layout(engine)?;
             self.child_nodes.push(child_node);
         }
-        engine.new_with_children(&self.style, &self.child_nodes)
+        engine.new_leaf(&self.style)
     }
 
     fn update_layout(&mut self, engine: &LayoutEngine, origin: Point) {
@@ -125,13 +125,13 @@ impl Widget for TabControl {
         let bt = base_theme();
         let tab_w = self.tab_width(&bounds);
 
-        // Tab bar background
+        // Tab bar container background (GNOME HIG header style)
         canvas.fill_rect(
             Rect::new(bounds.origin.x, bounds.origin.y, bounds.size.width, self.tab_height),
             bt.colors.surface,
         );
 
-        // Bottom divider of tab bar
+        // Bottom divider
         canvas.stroke_rect(
             Rect::new(bounds.origin.x, bounds.origin.y + self.tab_height - 1.0, bounds.size.width, 1.0),
             bt.colors.border, 1.0,
@@ -142,7 +142,28 @@ impl Widget for TabControl {
             let tab_x = bounds.origin.x + i as f32 * tab_w;
             let is_selected = i == self.selected_index;
 
-            // Tab label
+            // Tab button pill background for active tab
+            if is_selected {
+                let pill_rect = Rect::new(
+                    tab_x + 6.0,
+                    bounds.origin.y + 6.0,
+                    tab_w - 12.0,
+                    self.tab_height - 12.0,
+                );
+                canvas.fill_rounded_rect(
+                    pill_rect,
+                    quick_core::geometry::BorderRadius::all(8.0),
+                    bt.colors.bg,
+                );
+                canvas.stroke_rounded_rect(
+                    pill_rect,
+                    quick_core::geometry::BorderRadius::all(8.0),
+                    bt.colors.border,
+                    1.0,
+                );
+            }
+
+            // Tab label text
             let text_color = if is_selected { bt.colors.accent.normal } else { bt.colors.text_secondary };
             let font_size = if is_selected { 13.0 } else { 12.0 };
             let tw = (tab.label.chars().count() as f32) * font_size * 0.55;
@@ -160,7 +181,7 @@ impl Widget for TabControl {
             // Active underline indicator
             if is_selected {
                 canvas.fill_rect(
-                    Rect::new(tab_x + 4.0, bounds.origin.y + self.tab_height - 3.0, tab_w - 8.0, 3.0),
+                    Rect::new(tab_x + 12.0, bounds.origin.y + self.tab_height - 3.0, tab_w - 24.0, 3.0),
                     bt.colors.accent.normal,
                 );
             }
