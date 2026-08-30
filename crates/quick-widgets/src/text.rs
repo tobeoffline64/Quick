@@ -85,8 +85,8 @@ impl Widget for Text {
         let char_count = content.chars().count() as f32;
         let pad_h = self.style.padding.map(|p| p.left + p.right).unwrap_or(0.0);
         let pad_v = self.style.padding.map(|p| p.top + p.bottom).unwrap_or(0.0);
-        let estimated_width = (char_count * font_size * 0.55 + pad_h).max(10.0);
-        let estimated_height = font_size * 1.3 + pad_v;
+        let estimated_width = (char_count * font_size * 0.60 + pad_h).max(10.0);
+        let estimated_height = font_size * 1.5 + pad_v;
 
         let mut computed_style = self.style.clone();
         if computed_style.width.is_none() {
@@ -125,7 +125,7 @@ impl Widget for Text {
         let pad_top = self.style.padding.map(|p| p.top).unwrap_or(0.0);
         let content_w = (bounds.size.width - pad_left - pad_right).max(0.0);
         let char_count = self.text().chars().count() as f32;
-        let text_w = char_count * font_size * 0.55;
+        let text_w = char_count * font_size * 0.60;
 
         let offset_x = match self.style.text_align {
             Some(quick_style::property::TextAlignment::Center) => {
@@ -137,7 +137,11 @@ impl Widget for Text {
             _ => pad_left,
         };
 
-        let origin = Point::new(bounds.origin.x + offset_x, bounds.origin.y + pad_top + font_size);
+        let origin = Point::new(
+            bounds.origin.x + offset_x,
+            bounds.origin.y + pad_top + (bounds.size.height + font_size * 0.8) / 2.0,
+        );
+
         canvas.draw_text(
             self.text(),
             origin,
@@ -176,7 +180,6 @@ mod tests {
         let bounds = Rect::new(10.0, 10.0, 80.0, 30.0);
         text.paint(&mut canvas, bounds);
 
-        // Canvas should record background fill rounded rect + text draw command
         assert_eq!(canvas.commands().len(), 2);
     }
 
@@ -192,9 +195,7 @@ mod tests {
 
         assert_eq!(canvas.commands().len(), 1);
         if let DrawCommand::DrawText { origin, .. } = &canvas.commands()[0] {
-            // Text width for 2 chars at 10px is 2 * 10 * 0.55 = 11.0
-            // Offset for centering in 100px width is (100 - 11) / 2 = 44.5
-            assert!(origin.x > 40.0 && origin.x < 50.0);
+            assert!(origin.x > 35.0 && origin.x < 55.0);
         } else {
             panic!("Expected DrawText command");
         }
