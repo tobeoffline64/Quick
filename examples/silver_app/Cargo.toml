@@ -1,0 +1,14 @@
+[package]
+name = "silver-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+quick = { path = "../../crates/quick" }
+quick-core = { path = "../../crates/quick-core" }
+quick-markup = { path = "../../crates/quick-markup" }
+quick-window = { path = "../../crates/quick-window" }
+quick-style = { path = "../../crates/quick-style" }
+silver = { path = "../../../silver/crates/silver" }

@@ -210,6 +210,37 @@ pub fn batch<R, F: FnOnce() -> R>(f: F) -> R {
     res
 }
 
+/// DataContext provides a dynamic mapping of reactive signals and UI event action handlers.
+#[derive(Default, Clone)]
+pub struct DataContext {
+    pub string_signals: std::collections::HashMap<String, Signal<String>>,
+    pub bool_signals: std::collections::HashMap<String, Signal<bool>>,
+    pub f32_signals: std::collections::HashMap<String, Signal<f32>>,
+    pub action_handlers: std::collections::HashMap<String, Rc<RefCell<dyn FnMut()>>>,
+}
+
+impl DataContext {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn bind_signal(&mut self, name: impl Into<String>, signal: Signal<String>) {
+        self.string_signals.insert(name.into(), signal);
+    }
+
+    pub fn bind_bool_signal(&mut self, name: impl Into<String>, signal: Signal<bool>) {
+        self.bool_signals.insert(name.into(), signal);
+    }
+
+    pub fn bind_f32_signal(&mut self, name: impl Into<String>, signal: Signal<f32>) {
+        self.f32_signals.insert(name.into(), signal);
+    }
+
+    pub fn bind_action<F: FnMut() + 'static>(&mut self, name: impl Into<String>, handler: F) {
+        self.action_handlers.insert(name.into(), Rc::new(RefCell::new(handler)));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

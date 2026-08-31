@@ -15,39 +15,7 @@ use quick_widgets::switch::Switch;
 use quick_widgets::text::Text;
 use quick_widgets::text_input::TextInput;
 use quick_widgets::widget::Widget;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-
-#[derive(Default, Clone)]
-pub struct DataContext {
-    pub string_signals: HashMap<String, Signal<String>>,
-    pub bool_signals: HashMap<String, Signal<bool>>,
-    pub f32_signals: HashMap<String, Signal<f32>>,
-    pub action_handlers: HashMap<String, Rc<RefCell<dyn FnMut()>>>,
-}
-
-impl DataContext {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn bind_signal(&mut self, name: impl Into<String>, signal: Signal<String>) {
-        self.string_signals.insert(name.into(), signal);
-    }
-
-    pub fn bind_bool_signal(&mut self, name: impl Into<String>, signal: Signal<bool>) {
-        self.bool_signals.insert(name.into(), signal);
-    }
-
-    pub fn bind_f32_signal(&mut self, name: impl Into<String>, signal: Signal<f32>) {
-        self.f32_signals.insert(name.into(), signal);
-    }
-
-    pub fn bind_action<F: FnMut() + 'static>(&mut self, name: impl Into<String>, handler: F) {
-        self.action_handlers.insert(name.into(), Rc::new(RefCell::new(handler)));
-    }
-}
+pub use quick_core::signals::DataContext;
 
 pub fn build_ui_tree(
     doc: &UiDocument,
@@ -554,6 +522,8 @@ mod tests {
     use crate::quick_parser::parse_quick;
     use quick_core::event::{PointerButton, PointerEvent, PointerPhase};
     use quick_core::geometry::Point;
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     #[test]
     fn test_builder_switch_and_slider() {

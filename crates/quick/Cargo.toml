@@ -19,9 +19,10 @@ log = { workspace = true }
 thiserror = { workspace = true }
 
 [features]
-default = ["mimalloc", "vello"]
+default = ["mimalloc", "vello", "silver"]
 mimalloc = ["quick-core/mimalloc"]
 vello = ["quick-render/vello", "quick-window/vello"]
+silver = ["quick-core/silver"]
 
 [[test]]
 name = "e2e_m3_theme"

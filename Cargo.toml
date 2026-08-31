@@ -14,6 +14,7 @@ members = [
     "examples/hello_world",
     "examples/quick_counter",
     "examples/device_showcase",
+    "examples/silver_app",
 ]
 
 [workspace.package]
@@ -37,6 +38,7 @@ wgpu = "23.0"
 kurbo = "0.11"
 peniko = "0.3"
 pollster = "0.3"
+silver = { path = "../silver/crates/silver", version = "0.1.0" }
 smallvec = { version = "1.13", features = ["serde"] }
 slotmap = { version = "1.0", features = ["serde"] }
 parking_lot = "0.12"

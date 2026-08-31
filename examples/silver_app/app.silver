@@ -1,0 +1,18 @@
+// Silver application logic
+signal count: int = 0
+signal is_active: bool = true
+signal brightness: float = 75.0
+
+computed status = if count == 0 {
+    "Welcome to Silver! Click below to begin."
+} else {
+    "You have clicked \(count) times!"
+}
+
+fn increment() {
+    count += 1
+}
+
+fn reset() {
+    count = 0
+}

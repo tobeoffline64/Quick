@@ -6,7 +6,8 @@ license.workspace = true
 authors.workspace = true
 
 [features]
-default = []
+default = ["silver"]
+silver = ["dep:silver"]
 mimalloc = ["dep:mimalloc"]
 
 [dependencies]
@@ -19,3 +20,4 @@ thiserror = { workspace = true }
 log = { workspace = true }
 mimalloc = { workspace = true, optional = true }
 bumpalo = { workspace = true }
+silver = { workspace = true, optional = true }

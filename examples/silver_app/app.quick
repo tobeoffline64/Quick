@@ -1,0 +1,24 @@
+<Window title="Quick + Silver Reactive App" width="800" height="600" theme="material-you">
+    <Stack direction="vertical" spacing="16" padding="24">
+        <Card variant="elevated" padding="20">
+            <Stack direction="vertical" spacing="12">
+                <Text content="Quick Powered by Silver (.silver)" font_size="24" />
+                <Text content="$status" font_size="16" />
+                <Stack direction="horizontal" spacing="12">
+                    <Button variant="filled" label="Increment Counter" on_click="increment" />
+                    <Button variant="tonal" label="Reset" on_click="reset" />
+                </Stack>
+            </Stack>
+        </Card>
+
+        <Card variant="outlined" padding="20">
+            <Stack direction="vertical" spacing="12">
+                <Text content="Reactive Controls" font_size="18" />
+                <Stack direction="horizontal" spacing="16">
+                    <Switch checked="$is_active" />
+                    <Slider value="$brightness" min="0" max="100" />
+                </Stack>
+            </Stack>
+        </Card>
+    </Stack>
+</Window>
