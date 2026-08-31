@@ -74,8 +74,8 @@ impl TabControl {
     }
 
     fn tab_width(&self, bounds: &Rect) -> f32 {
-        if self.tabs.is_empty() { return 140.0; }
-        (bounds.size.width / self.tabs.len() as f32).max(120.0).min(280.0)
+        if self.tabs.is_empty() { return 160.0; }
+        (bounds.size.width / self.tabs.len() as f32).max(140.0).min(260.0)
     }
 }
 
@@ -110,7 +110,14 @@ impl Widget for TabControl {
             let child_node = child.build_layout(engine)?;
             self.child_nodes.push(child_node);
         }
-        engine.new_leaf(&self.style)
+        let mut tc_style = self.style.clone();
+        if tc_style.width.is_none() {
+            tc_style.width = Some(quick_style::property::Dimension::Percent(100.0));
+        }
+        if tc_style.height.is_none() {
+            tc_style.height = Some(quick_style::property::Dimension::Percent(100.0));
+        }
+        engine.new_with_children(&tc_style, &self.child_nodes)
     }
 
     fn update_layout(&mut self, engine: &LayoutEngine, origin: Point) {
@@ -124,6 +131,8 @@ impl Widget for TabControl {
     fn paint(&self, canvas: &mut Canvas, bounds: Rect) {
         let bt = base_theme();
         let tab_w = self.tab_width(&bounds);
+        let total_tabs_w = tab_w * (self.tabs.len() as f32);
+        let start_x = bounds.origin.x + ((bounds.size.width - total_tabs_w) / 2.0).max(0.0);
 
         // Tab bar container background (GNOME HIG header style)
         canvas.fill_rect(
@@ -137,18 +146,18 @@ impl Widget for TabControl {
             bt.colors.border, 1.0,
         );
 
-        // Tab items
+        // Tab items (Centered AdwViewSwitcher style)
         for (i, tab) in self.tabs.iter().enumerate() {
-            let tab_x = bounds.origin.x + i as f32 * tab_w;
+            let tab_x = start_x + i as f32 * tab_w;
             let is_selected = i == self.selected_index;
 
             // Tab button pill background for active tab
             if is_selected {
                 let pill_rect = Rect::new(
-                    tab_x + 6.0,
-                    bounds.origin.y + 6.0,
-                    tab_w - 12.0,
-                    self.tab_height - 12.0,
+                    tab_x + 4.0,
+                    bounds.origin.y + 5.0,
+                    tab_w - 8.0,
+                    self.tab_height - 10.0,
                 );
                 canvas.fill_rounded_rect(
                     pill_rect,
@@ -206,16 +215,20 @@ impl Widget for TabControl {
                 if p.position.y < bounds.origin.y + self.tab_height {
                     if p.phase == PointerPhase::Down || p.phase == PointerPhase::Up {
                         let tab_w = self.tab_width(&bounds);
-                        let rel_x = p.position.x - bounds.origin.x;
-                        let idx = (rel_x / tab_w) as usize;
-                        if idx < self.tabs.len() {
-                            if self.selected_index != idx {
-                                self.selected_index = idx;
-                                if let Some(ref mut handler) = self.on_tab_change {
-                                    handler(idx);
+                        let total_tabs_w = tab_w * (self.tabs.len() as f32);
+                        let start_x = bounds.origin.x + ((bounds.size.width - total_tabs_w) / 2.0).max(0.0);
+                        let rel_x = p.position.x - start_x;
+                        if rel_x >= 0.0 && rel_x < total_tabs_w {
+                            let idx = (rel_x / tab_w) as usize;
+                            if idx < self.tabs.len() {
+                                if self.selected_index != idx {
+                                    self.selected_index = idx;
+                                    if let Some(ref mut handler) = self.on_tab_change {
+                                        handler(idx);
+                                    }
                                 }
+                                return true;
                             }
-                            return true;
                         }
                     }
                     return true;

@@ -1,20 +1,20 @@
 <!-- Quick Component Gallery — GNOME HIG Adaptive Multi-Theme Showcase -->
 <App title="⚡ Quick Component Gallery" width="1280" height="920">
-  <VStack style="width: 100%; height: 100%; min-height: 100%; padding: 0px; gap: 0px; background: #F6F8FA;">
+  <VStack style="width: 100%; height: 100%; min-height: 100%; padding: 0px; gap: 0px;">
 
     <!-- GNOME HIG Header Bar -->
-    <HStack style="width: 100%; padding: 14px 24px; background: #FFFFFF; border-bottom: 1px #E1E4E8; gap: 16px; align-items: center; justify-content: space-between;">
+    <HStack style="width: 100%; padding: 14px 28px; border-bottom: 1px #E1E4E8; gap: 16px; align-items: center; justify-content: space-between;">
       <HStack style="gap: 12px; align-items: center;">
-        <Text text="⚡ Quick Gallery" style="font-size: 16px; font-weight: bold; color: #24292E;" />
-        <Text text="GNOME HIG Adaptive Edition" style="font-size: 12px; color: #586069;" />
+        <Text text="⚡ Quick Gallery" style="font-size: 16px; font-weight: bold;" />
+        <Text text="GNOME HIG Adaptive Edition" style="font-size: 12px; color: #888888;" />
       </HStack>
       <HStack style="gap: 8px; align-items: center;">
-        <Chip text="Adaptive Clamped Width" selected="true" />
-        <Chip text="High-DPI 12px Inter" selected="true" />
+        <Chip text="Adaptive ViewSwitchers" selected="true" />
+        <Chip text="12px Typography" selected="true" />
       </HStack>
     </HStack>
 
-    <!-- GNOME HIG View Switcher TabControl -->
+    <!-- GNOME HIG Centered View Switcher TabControl -->
     <TabControl tabs="🎨 Base Fluent,✨ Material You,🌙 Noctalia Glass,⚖️ Full Comparison" selected="0" style="width: 100%; height: 100%;">
 
       <!-- ========================================================================= -->
@@ -25,13 +25,13 @@
 
           <!-- Group Header -->
           <VStack style="gap: 4px; padding-bottom: 8px; border-bottom: 1px #E1E4E8;">
-            <Text text="Avalonia Fluent Base Theme" style="font-size: 16px; font-weight: bold; color: #24292E;" />
-            <Text text="Clean cross-platform controls with automatic OS accent and light/dark theme adaptation" style="font-size: 12px; color: #586069;" />
+            <Text text="Avalonia Fluent Base Theme" style="font-size: 16px; font-weight: bold;" />
+            <Text text="Clean cross-platform controls with automatic OS accent and light/dark theme adaptation" style="font-size: 12px; color: #888888;" />
           </VStack>
 
           <!-- Boxed Group: Buttons -->
-          <Card variant="outlined" style="padding: 18px 20px; gap: 14px; background: #FFFFFF;">
-            <Text text="BUTTONS & ACTIONS" style="font-size: 11px; font-weight: bold; color: #586069;" />
+          <Card variant="outlined" style="padding: 18px 20px; gap: 14px;">
+            <Text text="BUTTONS & ACTIONS" style="font-size: 11px; font-weight: bold; color: #888888;" />
             <HStack style="gap: 12px; align-items: center;">
               <Button text="Primary Action" variant="filled" />
               <Button text="Secondary Tonal" variant="tonal" />
@@ -42,27 +42,27 @@
           </Card>
 
           <!-- Boxed Group: Container Cards -->
-          <Card variant="outlined" style="padding: 18px 20px; gap: 14px; background: #FFFFFF;">
-            <Text text="CONTAINER CARDS" style="font-size: 11px; font-weight: bold; color: #586069;" />
+          <Card variant="outlined" style="padding: 18px 20px; gap: 14px;">
+            <Text text="CONTAINER CARDS" style="font-size: 11px; font-weight: bold; color: #888888;" />
             <HStack style="gap: 16px;">
               <Card variant="elevated">
                 <Text text="Elevated Fluent Card" style="font-size: 13px; font-weight: bold;" />
-                <Text text="Subtle border with smooth elevation drop shadow" style="font-size: 11px; color: #666666;" />
+                <Text text="Subtle border with smooth elevation drop shadow" style="font-size: 11px; color: #888888;" />
               </Card>
               <Card variant="filled">
                 <Text text="Filled Fluent Card" style="font-size: 13px; font-weight: bold;" />
-                <Text text="Solid container background color" style="font-size: 11px; color: #666666;" />
+                <Text text="Solid container background color" style="font-size: 11px; color: #888888;" />
               </Card>
               <Card variant="outlined">
                 <Text text="Outlined Fluent Card" style="font-size: 13px; font-weight: bold;" />
-                <Text text="1px high-contrast structural outline" style="font-size: 11px; color: #666666;" />
+                <Text text="1px high-contrast structural outline" style="font-size: 11px; color: #888888;" />
               </Card>
             </HStack>
           </Card>
 
           <!-- Boxed Group: Selection & Toggles -->
-          <Card variant="outlined" style="padding: 18px 20px; gap: 14px; background: #FFFFFF;">
-            <Text text="SELECTION CONTROLS" style="font-size: 11px; font-weight: bold; color: #586069;" />
+          <Card variant="outlined" style="padding: 18px 20px; gap: 14px;">
+            <Text text="SELECTION CONTROLS" style="font-size: 11px; font-weight: bold; color: #888888;" />
             <HStack style="gap: 28px; align-items: center;">
               <Switch checked="$sw_base" onchange="on_switch_base" />
               <Checkbox checked="$cb_base" onchange="on_check_base" />
@@ -72,8 +72,8 @@
           </Card>
 
           <!-- Boxed Group: Inputs & Progress -->
-          <Card variant="outlined" style="padding: 18px 20px; gap: 14px; background: #FFFFFF;">
-            <Text text="INPUTS & PROGRESS" style="font-size: 11px; font-weight: bold; color: #586069;" />
+          <Card variant="outlined" style="padding: 18px 20px; gap: 14px;">
+            <Text text="INPUTS & PROGRESS" style="font-size: 11px; font-weight: bold; color: #888888;" />
             <HStack style="gap: 24px; align-items: center;">
               <TextInput placeholder="Enter text…" value="$input_base" style="width: 260px;" />
               <Slider min="0" max="100" value="$slider_base" style="width: 240px;" />
@@ -213,14 +213,14 @@
       <ScrollViewer style="width: 100%; height: 100%; padding: 24px 32px;" content_height="1200">
         <VStack style="width: 100%; gap: 24px;">
 
-          <HStack style="width: 100%; padding: 10px 18px; background: #E1E4E8; border-radius: 8px;">
-            <Container style="width: 50%;"><Text text="Base Theme (Fluent)" style="font-size: 13px; font-weight: bold; color: #24292E;" /></Container>
-            <Container style="width: 50%;"><Text text="Material You (M3)" style="font-size: 13px; font-weight: bold; color: #24292E;" /></Container>
+          <HStack style="width: 100%; padding: 10px 18px; border-radius: 8px;">
+            <Container style="width: 50%;"><Text text="Base Theme (Fluent)" style="font-size: 13px; font-weight: bold;" /></Container>
+            <Container style="width: 50%;"><Text text="Material You (M3)" style="font-size: 13px; font-weight: bold;" /></Container>
           </HStack>
 
           <!-- Button Comparison -->
-          <Card variant="outlined" style="padding: 16px 20px; gap: 12px; background: #FFFFFF;">
-            <Text text="BUTTONS" style="font-size: 11px; font-weight: bold; color: #586069;" />
+          <Card variant="outlined" style="padding: 16px 20px; gap: 12px;">
+            <Text text="BUTTONS" style="font-size: 11px; font-weight: bold; color: #888888;" />
             <HStack style="width: 100%; gap: 24px;">
               <HStack style="width: 50%; gap: 8px;">
                 <Button text="Primary" variant="filled" />
@@ -236,8 +236,8 @@
           </Card>
 
           <!-- Selection Comparison -->
-          <Card variant="outlined" style="padding: 16px 20px; gap: 12px; background: #FFFFFF;">
-            <Text text="SELECTION" style="font-size: 11px; font-weight: bold; color: #586069;" />
+          <Card variant="outlined" style="padding: 16px 20px; gap: 12px;">
+            <Text text="SELECTION" style="font-size: 11px; font-weight: bold; color: #888888;" />
             <HStack style="width: 100%; gap: 24px;">
               <HStack style="width: 50%; gap: 20px; align-items: center;">
                 <Switch checked="$sw_base" onchange="on_switch_base" />
@@ -253,8 +253,8 @@
           </Card>
 
           <!-- Inputs Comparison -->
-          <Card variant="outlined" style="padding: 16px 20px; gap: 12px; background: #FFFFFF;">
-            <Text text="INPUTS & SLIDERS" style="font-size: 11px; font-weight: bold; color: #586069;" />
+          <Card variant="outlined" style="padding: 16px 20px; gap: 12px;">
+            <Text text="INPUTS & SLIDERS" style="font-size: 11px; font-weight: bold; color: #888888;" />
             <HStack style="width: 100%; gap: 24px;">
               <VStack style="width: 50%; gap: 10px;">
                 <TextInput placeholder="Type here…" value="$input_base" />
