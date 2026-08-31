@@ -100,8 +100,6 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
                     match VelloSurface::new(window_arc.clone(), width, height) {
                         Ok(vello_surf) => {
                             self.vello_surface = Some(vello_surf);
-                            window_arc.request_redraw();
-                            return;
                         }
                         Err(err) => {
                             log::warn!("Vello GPU surface initialization fallback to software: {:?}", err);
@@ -113,7 +111,6 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
                     Ok(context) => match softbuffer::Surface::new(&context, window_arc.clone()) {
                         Ok(surface) => {
                             self.soft_surface = Some(surface);
-                            window_arc.request_redraw();
                         }
                         Err(err) => {
                             eprintln!("Failed to create softbuffer surface: {:?}", err);
@@ -123,6 +120,8 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
                         eprintln!("Failed to create softbuffer context: {:?}", err);
                     }
                 }
+
+                window_arc.request_redraw();
             }
             Err(err) => {
                 eprintln!("Failed to create Wayland/X11 window: {:?}", err);
@@ -178,10 +177,12 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
                 if let Some(ref mut v_surf) = self.vello_surface {
                     v_surf.scene.reset();
                     VelloSceneBuilder::build(canvas, &mut v_surf.scene);
-                    if let Err(err) = v_surf.render(width, height) {
-                        log::error!("Vello GPU render failed: {:?}", err);
+                    match v_surf.render(width, height) {
+                        Ok(()) => return,
+                        Err(err) => {
+                            log::warn!("Vello GPU render failed, falling back to software: {:?}", err);
+                        }
                     }
-                    return;
                 }
 
                 if let Some(ref mut surface) = self.soft_surface {

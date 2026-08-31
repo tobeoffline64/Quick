@@ -48,8 +48,15 @@ impl VelloSurface {
             .formats
             .iter()
             .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(surface_caps.formats[0]);
+            .find(|f| matches!(f, wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Bgra8Unorm))
+            .unwrap_or(wgpu::TextureFormat::Bgra8Unorm);
+
+        let alpha_mode = surface_caps
+            .alpha_modes
+            .iter()
+            .copied()
+            .find(|a| matches!(a, wgpu::CompositeAlphaMode::Opaque | wgpu::CompositeAlphaMode::Auto))
+            .unwrap_or(surface_caps.alpha_modes[0]);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -57,7 +64,7 @@ impl VelloSurface {
             width: width.max(1),
             height: height.max(1),
             present_mode: wgpu::PresentMode::AutoVsync,
-            alpha_mode: surface_caps.alpha_modes[0],
+            alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
