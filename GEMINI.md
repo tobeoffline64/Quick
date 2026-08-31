@@ -1,4 +1,4 @@
-# Quick UI Framework Development Guidelines
+# Quick UI Framework Development Guidelines (v0.1.0-alpha)
 
 ## 1. High-DPI & Coordinate Systems
 - Always convert window events from physical pixels to logical points using `scale_factor` before hit-testing widget bounds:
@@ -35,3 +35,12 @@
 - **Vello Type Consistency**: Always import `kurbo` and `peniko` via `vello::kurbo` and `vello::peniko` to prevent dependency version conflicts.
 - **Vello Clipping**: Always use `scene.push_layer(BlendMode::default(), 1.0, transform, &clip_shape)` paired with `scene.pop_layer()`.
 - **Swapchain Presentation**: Pass `&SurfaceTexture` directly to `renderer.render_to_surface(&device, &queue, &scene, &surface_texture, &params)`.
+
+## 8. Typography & Vector Glyph Pipeline
+- In `VelloSceneBuilder`, render text via `scene.draw_glyphs(font).font_size(size).transform(current_transform).brush(color).draw(Fill::NonZero, glyphs)`.
+- Advance text cursor `cur_x` using font metrics (`f_font.metrics(ch, scale).advance_width`) and handle newline resets (`cur_y += font_size * 1.35`).
+- Maintain the root transform `Affine::scale(scale_factor)` so vector glyphs render with crisp subpixel anti-aliasing on High-DPI screens.
+
+## 9. Framework Alpha Readiness Contract
+- Maintain 100% test pass rate across all workspace crates (`quick-core`, `quick-style`, `quick-render`, `quick-layout`, `quick-widgets`, `quick-markup`, `quick-window`, `quick`).
+- Maintain sub-15ms cold startup (Time To First Frame) and zero-memory-leak frame arena resets.
