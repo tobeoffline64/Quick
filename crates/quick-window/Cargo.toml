@@ -13,3 +13,10 @@ raw-window-handle = { workspace = true }
 softbuffer = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
+vello = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
+
+[features]
+default = ["vello"]
+vello = ["dep:vello", "dep:wgpu", "dep:pollster", "quick-render/vello"]

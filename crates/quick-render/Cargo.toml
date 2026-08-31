@@ -12,11 +12,11 @@ bumpalo = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 fontdue = "0.9.4"
+kurbo = { workspace = true, optional = true }
+peniko = { workspace = true, optional = true }
+vello = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true }
 
 [features]
-default = []
-skia = ["dep:skia-safe"]
-
-[dependencies.skia-safe]
-workspace = true
-optional = true
+default = ["vello"]
+vello = ["dep:vello", "dep:wgpu", "dep:kurbo", "dep:peniko"]

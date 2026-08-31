@@ -32,7 +32,11 @@ taffy = "0.6"
 winit = { version = "0.30", features = ["rwh_06", "wayland", "x11"] }
 raw-window-handle = "0.6"
 softbuffer = { version = "0.4", default-features = false, features = ["wayland", "x11rb"] }
-skia-safe = { version = "0.80", default-features = false, features = ["gl", "textlayout"] }
+vello = "0.3"
+wgpu = "23.0"
+kurbo = "0.11"
+peniko = "0.3"
+pollster = "0.3"
 smallvec = { version = "1.13", features = ["serde"] }
 slotmap = { version = "1.0", features = ["serde"] }
 parking_lot = "0.12"

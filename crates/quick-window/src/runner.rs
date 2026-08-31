@@ -1,9 +1,13 @@
 use crate::event_bridge::EventBridge;
+#[cfg(feature = "vello")]
+use crate::vello_surface::VelloSurface;
 use crate::window::WindowOptions;
 use quick_core::event::Event;
 use quick_core::geometry::Size;
 use quick_render::canvas::Canvas;
 use quick_render::rasterizer::SoftwareRasterizer;
+#[cfg(feature = "vello")]
+use quick_render::vello_scene::VelloSceneBuilder;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use winit::application::ApplicationHandler;
@@ -22,7 +26,9 @@ pub struct WindowRunner<C: AppController> {
     controller: C,
     bridge: EventBridge,
     window: Option<Arc<Window>>,
-    surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
+    #[cfg(feature = "vello")]
+    vello_surface: Option<VelloSurface>,
+    soft_surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
     current_size: Size,
     scale_factor: f32,
 }
@@ -35,7 +41,9 @@ impl<C: AppController> WindowRunner<C> {
             controller,
             bridge: EventBridge::new(),
             window: None,
-            surface: None,
+            #[cfg(feature = "vello")]
+            vello_surface: None,
+            soft_surface: None,
             current_size: size,
             scale_factor: 1.0,
         }
@@ -43,6 +51,17 @@ impl<C: AppController> WindowRunner<C> {
 
     pub fn scale_factor(&self) -> f32 {
         self.scale_factor
+    }
+
+    pub fn is_gpu_accelerated(&self) -> bool {
+        #[cfg(feature = "vello")]
+        {
+            self.vello_surface.is_some()
+        }
+        #[cfg(not(feature = "vello"))]
+        {
+            false
+        }
     }
 
     pub fn run(mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -71,12 +90,29 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
             Ok(w) => {
                 let window_arc = Arc::new(w);
                 self.scale_factor = window_arc.scale_factor() as f32;
+                let phys = window_arc.inner_size();
+                let width = phys.width.max(1);
+                let height = phys.height.max(1);
                 self.window = Some(window_arc.clone());
+
+                #[cfg(feature = "vello")]
+                {
+                    match VelloSurface::new(window_arc.clone(), width, height) {
+                        Ok(vello_surf) => {
+                            self.vello_surface = Some(vello_surf);
+                            window_arc.request_redraw();
+                            return;
+                        }
+                        Err(err) => {
+                            log::warn!("Vello GPU surface initialization fallback to software: {:?}", err);
+                        }
+                    }
+                }
 
                 match softbuffer::Context::new(window_arc.clone()) {
                     Ok(context) => match softbuffer::Surface::new(&context, window_arc.clone()) {
                         Ok(surface) => {
-                            self.surface = Some(surface);
+                            self.soft_surface = Some(surface);
                             window_arc.request_redraw();
                         }
                         Err(err) => {
@@ -114,8 +150,13 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
                 let h = physical_size.height as f32 / sf;
                 self.current_size = Size::new(w, h);
 
+                #[cfg(feature = "vello")]
+                if let Some(ref mut v_surf) = self.vello_surface {
+                    v_surf.resize(physical_size.width, physical_size.height);
+                }
+
                 if let (Some(surface), Some(w_nz), Some(h_nz)) = (
-                    &mut self.surface,
+                    &mut self.soft_surface,
                     NonZeroU32::new(physical_size.width),
                     NonZeroU32::new(physical_size.height),
                 ) {
@@ -133,7 +174,17 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
 
                 let canvas = self.controller.render_frame(self.current_size);
 
-                if let Some(ref mut surface) = self.surface {
+                #[cfg(feature = "vello")]
+                if let Some(ref mut v_surf) = self.vello_surface {
+                    v_surf.scene.reset();
+                    VelloSceneBuilder::build(canvas, &mut v_surf.scene);
+                    if let Err(err) = v_surf.render(width, height) {
+                        log::error!("Vello GPU render failed: {:?}", err);
+                    }
+                    return;
+                }
+
+                if let Some(ref mut surface) = self.soft_surface {
                     if let (Some(w_nz), Some(h_nz)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
                         let _ = surface.resize(w_nz, h_nz);
                     }
