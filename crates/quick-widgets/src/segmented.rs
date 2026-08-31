@@ -106,6 +106,7 @@ impl Widget for Segmented {
     fn handle_event(&mut self, event: &Event, bounds: Rect) -> bool {
         if let Event::Pointer(PointerEvent { position, button, phase, .. }) = event {
             let inside = bounds.contains(*position);
+            let prev_hovered = self.hovered_index;
             if inside {
                 let pad = 2.0;
                 let count = self.items.len().max(1);
@@ -127,7 +128,11 @@ impl Widget for Segmented {
             } else {
                 self.hovered_index = None;
             }
-            inside
+            if *phase == PointerPhase::Moved {
+                prev_hovered != self.hovered_index
+            } else {
+                inside
+            }
         } else {
             false
         }

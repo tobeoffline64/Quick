@@ -181,6 +181,7 @@ impl Widget for Slider {
         match event {
             Event::Pointer(PointerEvent { position, button, phase, .. }) => {
                 let inside = bounds.contains(*position);
+                let prev_hover = self.is_hovered;
                 self.is_hovered = inside;
 
                 match phase {
@@ -193,14 +194,21 @@ impl Widget for Slider {
                         self.update_from_pos(position.x, bounds);
                         true
                     }
+                    PointerPhase::Moved => {
+                        prev_hover != self.is_hovered
+                    }
                     PointerPhase::Up if self.is_dragging => {
                         self.is_dragging = false;
                         self.update_from_pos(position.x, bounds);
                         true
                     }
                     PointerPhase::Cancel => {
-                        self.is_dragging = false;
-                        false
+                        if self.is_dragging {
+                            self.is_dragging = false;
+                            true
+                        } else {
+                            false
+                        }
                     }
                     _ => false,
                 }

@@ -2,9 +2,18 @@ use crate::canvas::{Canvas, DrawCommand};
 use fontdue::{Font, FontSettings};
 use quick_core::geometry::{BorderRadius, Color, Insets, Point, Rect};
 use quick_style::theme::tokens::Shadow;
-use std::sync::OnceLock;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
 
 static DEFAULT_INTER_FONT: OnceLock<Font> = OnceLock::new();
+
+#[derive(Clone)]
+struct CachedGlyph {
+    metrics: fontdue::Metrics,
+    bitmap: Arc<Vec<u8>>,
+}
+
+static GLYPH_CACHE: OnceLock<Mutex<HashMap<(char, u32), CachedGlyph>>> = OnceLock::new();
 
 fn get_default_font() -> &'static Font {
     DEFAULT_INTER_FONT.get_or_init(|| {
@@ -16,6 +25,29 @@ fn get_default_font() -> &'static Font {
             .or_else(|_| Font::from_bytes(quick_style::fonts::INTER_REGULAR, FontSettings::default()))
             .expect("Failed to initialize embedded Inter font")
     })
+}
+
+fn get_cached_glyph(font: &Font, ch: char, scale: f32) -> CachedGlyph {
+    let scale_key = (scale * 10.0).round() as u32;
+    let cache_mutex = GLYPH_CACHE.get_or_init(|| Mutex::new(HashMap::with_capacity(256)));
+
+    if let Ok(cache) = cache_mutex.lock() {
+        if let Some(entry) = cache.get(&(ch, scale_key)) {
+            return entry.clone();
+        }
+    }
+
+    let (metrics, bitmap) = font.rasterize(ch, scale);
+    let entry = CachedGlyph {
+        metrics,
+        bitmap: Arc::new(bitmap),
+    };
+
+    if let Ok(mut cache) = cache_mutex.lock() {
+        cache.insert((ch, scale_key), entry.clone());
+    }
+
+    entry
 }
 
 pub struct SoftwareRasterizer;
@@ -178,9 +210,24 @@ impl SoftwareRasterizer {
         let x1 = rect.max_x().min(clip.max_x()).min(width as f32).ceil() as i32;
         let y1 = rect.max_y().min(clip.max_y()).min(height as f32).ceil() as i32;
 
-        for y in y0..y1 {
-            for x in x0..x1 {
-                Self::set_pixel(buffer, width, height, x, y, color, clip);
+        if x1 <= x0 || y1 <= y0 {
+            return;
+        }
+
+        if color.a == 255 {
+            let pixel = (0xFF << 24) | ((color.r as u32) << 16) | ((color.g as u32) << 8) | (color.b as u32);
+            for y in y0..y1 {
+                let start_idx = (y as u32 * width + x0 as u32) as usize;
+                let end_idx = (y as u32 * width + x1 as u32) as usize;
+                if end_idx <= buffer.len() {
+                    buffer[start_idx..end_idx].fill(pixel);
+                }
+            }
+        } else if color.a > 0 {
+            for y in y0..y1 {
+                for x in x0..x1 {
+                    Self::set_pixel(buffer, width, height, x, y, color, clip);
+                }
             }
         }
     }
@@ -210,12 +257,31 @@ impl SoftwareRasterizer {
         let x1 = (rect.max_x() + 1.0).min(clip.max_x()).min(width as f32).ceil() as i32;
         let y1 = (rect.max_y() + 1.0).min(clip.max_y()).min(height as f32).ceil() as i32;
 
+        let _max_corner_r = r_tl.max(r_tr).max(r_br).max(r_bl);
+        let top_corner_y = (rect.min_y() + r_tl.max(r_tr)).ceil() as i32;
+        let bottom_corner_y = (rect.max_y() - r_bl.max(r_br)).floor() as i32;
+
         for y in y0..y1 {
             let py = y as f32 + 0.5;
+
+            // Fast path for solid middle body without corners
+            if y >= top_corner_y && y < bottom_corner_y && color.a == 255 {
+                let rx0 = rect.min_x().max(clip.min_x()).max(0.0) as i32;
+                let rx1 = rect.max_x().min(clip.max_x()).min(width as f32).ceil() as i32;
+                if rx1 > rx0 {
+                    let pixel = (0xFF << 24) | ((color.r as u32) << 16) | ((color.g as u32) << 8) | (color.b as u32);
+                    let start_idx = (y as u32 * width + rx0 as u32) as usize;
+                    let end_idx = (y as u32 * width + rx1 as u32) as usize;
+                    if end_idx <= buffer.len() {
+                        buffer[start_idx..end_idx].fill(pixel);
+                        continue;
+                    }
+                }
+            }
+
             for x in x0..x1 {
                 let px = x as f32 + 0.5;
 
-                // Check bounding box
                 if px < rect.min_x() || px > rect.max_x() || py < rect.min_y() || py > rect.max_y() {
                     continue;
                 }
@@ -483,8 +549,10 @@ impl SoftwareRasterizer {
                 continue;
             }
 
-            // Check if font has the glyph
-            let (metrics, bitmap) = font.rasterize(ch, scale);
+            // Check if font has the glyph (via fast in-memory GlyphCache)
+            let cached = get_cached_glyph(font, ch, scale);
+            let metrics = &cached.metrics;
+            let bitmap = &cached.bitmap;
             if metrics.width > 0 && metrics.height > 0 && !bitmap.is_empty() {
                 let glyph_x0 = (cur_x + metrics.xmin as f32).round() as i32;
                 // In fontdue, ymin is distance from baseline to bottom of glyph.

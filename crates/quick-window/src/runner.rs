@@ -103,13 +103,15 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
                 self.scale_factor = scale_factor as f32;
                 if let Some(ref window) = self.window {
                     let phys = window.inner_size();
-                    self.current_size = Size::new(phys.width as f32, phys.height as f32);
+                    let sf = if self.scale_factor > 0.0 { self.scale_factor } else { 1.0 };
+                    self.current_size = Size::new(phys.width as f32 / sf, phys.height as f32 / sf);
                     window.request_redraw();
                 }
             }
             WindowEvent::Resized(physical_size) => {
-                let w = physical_size.width as f32;
-                let h = physical_size.height as f32;
+                let sf = if self.scale_factor > 0.0 { self.scale_factor } else { 1.0 };
+                let w = physical_size.width as f32 / sf;
+                let h = physical_size.height as f32 / sf;
                 self.current_size = Size::new(w, h);
 
                 if let (Some(surface), Some(w_nz), Some(h_nz)) = (
@@ -125,8 +127,9 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
                 }
             }
             WindowEvent::RedrawRequested => {
-                let width = self.current_size.width as u32;
-                let height = self.current_size.height as u32;
+                let sf = if self.scale_factor > 0.0 { self.scale_factor } else { 1.0 };
+                let width = (self.current_size.width * sf).round() as u32;
+                let height = (self.current_size.height * sf).round() as u32;
 
                 let canvas = self.controller.render_frame(self.current_size);
 
@@ -142,7 +145,7 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
                 }
             }
             other_event => {
-                if let Some(quick_event) = self.bridge.translate_event(&other_event) {
+                if let Some(quick_event) = self.bridge.translate_event_scaled(&other_event, self.scale_factor) {
                     let handled = self.controller.handle_event(&quick_event, self.current_size);
                     if handled {
                         if let Some(ref window) = self.window {

@@ -153,12 +153,13 @@ impl Widget for Container {
                 }
             }
             _ => {
+                let mut any_handled = false;
                 for (child, child_bound) in self.children.iter_mut().zip(&self.child_bounds).rev() {
                     if child.handle_event(event, *child_bound) {
-                        return true;
+                        any_handled = true;
                     }
                 }
-                false
+                any_handled
             }
         }
     }

@@ -164,8 +164,10 @@ impl Widget for ScrollViewer {
             }
             Event::Pointer(quick_core::event::PointerEvent { position, .. }) => {
                 let sb_x = bounds.origin.x + bounds.size.width - Self::SCROLLBAR_HOVER_W - 4.0;
+                let prev_sb_hover = self.is_thumb_hovered;
                 self.is_thumb_hovered = position.x >= sb_x && bounds.contains(*position);
 
+                let mut handled = false;
                 for (i, child) in self.children.iter_mut().enumerate() {
                     let child_b = self.child_bounds.get(i).copied().unwrap_or(bounds);
                     let offset_bounds = Rect::new(
@@ -174,11 +176,11 @@ impl Widget for ScrollViewer {
                         child_b.size.width,
                         child_b.size.height,
                     );
-                    if offset_bounds.contains(*position) && child.handle_event(event, offset_bounds) {
-                        return true;
+                    if child.handle_event(event, offset_bounds) {
+                        handled = true;
                     }
                 }
-                bounds.contains(*position)
+                handled || (prev_sb_hover != self.is_thumb_hovered)
             }
             _ => {
                 for (i, child) in self.children.iter_mut().enumerate() {

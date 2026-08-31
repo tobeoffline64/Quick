@@ -190,6 +190,7 @@ impl Widget for NoctaliaButton {
 
         if let Event::Pointer(PointerEvent { position, button, phase, .. }) = event {
             let inside = bounds.contains(*position);
+            let prev_hover = self.is_hovered;
             self.is_hovered = inside;
 
             match phase {
@@ -207,8 +208,15 @@ impl Widget for NoctaliaButton {
                     true
                 }
                 PointerPhase::Cancel => {
-                    self.is_pressed = false;
-                    false
+                    if self.is_pressed {
+                        self.is_pressed = false;
+                        true
+                    } else {
+                        false
+                    }
+                }
+                PointerPhase::Moved => {
+                    prev_hover != self.is_hovered
                 }
                 _ => inside,
             }

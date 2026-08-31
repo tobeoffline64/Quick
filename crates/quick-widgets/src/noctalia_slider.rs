@@ -122,6 +122,7 @@ impl Widget for NoctaliaSlider {
     fn handle_event(&mut self, event: &Event, bounds: Rect) -> bool {
         if let Event::Pointer(PointerEvent { position, button, phase, .. }) = event {
             let inside = bounds.contains(*position);
+            let prev_hover = self.is_hovered;
             self.is_hovered = inside;
 
             let icon_w = if self.icon_text.is_some() { 28.0 } else { 0.0 };
@@ -152,6 +153,9 @@ impl Widget for NoctaliaSlider {
                         handler(self.value);
                     }
                     true
+                }
+                PointerPhase::Moved => {
+                    prev_hover != self.is_hovered
                 }
                 PointerPhase::Up if self.is_dragging => {
                     self.is_dragging = false;

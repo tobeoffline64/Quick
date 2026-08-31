@@ -19,6 +19,8 @@ pub struct App {
     layout_engine: LayoutEngine,
     canvas: Canvas,
     damage_tracker: DamageTracker,
+    cached_bounds: Rect,
+    layout_dirty: bool,
 }
 
 impl App {
@@ -30,6 +32,8 @@ impl App {
             layout_engine: LayoutEngine::new(),
             canvas: Canvas::new(),
             damage_tracker: DamageTracker::new(),
+            cached_bounds: Rect::ZERO,
+            layout_dirty: true,
         }
     }
 
@@ -45,8 +49,13 @@ impl App {
         &mut self.damage_tracker
     }
 
+    pub fn invalidate_layout(&mut self) {
+        self.layout_dirty = true;
+    }
+
     pub fn with_root(mut self, root: impl Widget + 'static) -> Self {
         self.root = Some(Box::new(root));
+        self.layout_dirty = true;
         self
     }
 
@@ -56,6 +65,7 @@ impl App {
         let (root_widget, stylesheet) = build_ui_tree(&doc, data_ctx);
         self.root = Some(root_widget);
         self.stylesheet = stylesheet;
+        self.layout_dirty = true;
         Ok(self)
     }
 
@@ -65,6 +75,7 @@ impl App {
         let (root_widget, stylesheet) = build_ui_tree(&doc, data_ctx);
         self.root = Some(root_widget);
         self.stylesheet = stylesheet;
+        self.layout_dirty = true;
         Ok(self)
     }
 
@@ -73,6 +84,7 @@ impl App {
         let (root_widget, stylesheet) = build_ui_tree(&doc, data_ctx);
         self.root = Some(root_widget);
         self.stylesheet = stylesheet;
+        self.layout_dirty = true;
         Ok(self)
     }
 
@@ -81,7 +93,44 @@ impl App {
         let (root_widget, stylesheet) = build_ui_tree(&doc, data_ctx);
         self.root = Some(root_widget);
         self.stylesheet = stylesheet;
+        self.layout_dirty = true;
         Ok(self)
+    }
+
+    fn ensure_layout(&mut self, window_size: Size) -> Rect {
+        if !self.layout_dirty && self.cached_bounds.size == window_size && !self.cached_bounds.size.is_empty() {
+            return self.cached_bounds;
+        }
+
+        if let Some(ref mut root) = self.root {
+            if root.style().width.is_none() {
+                root.style_mut().width = Some(quick_style::property::Dimension::Percent(100.0));
+            }
+            if root.style().height.is_none() {
+                root.style_mut().height = Some(quick_style::property::Dimension::Percent(100.0));
+            }
+
+            self.layout_engine.reset();
+            if let Ok(root_node) = root.build_layout(&mut self.layout_engine) {
+                let _ = self.layout_engine.compute_layout(root_node, window_size);
+                if let Ok(mut bounds) = self.layout_engine.get_layout(root_node) {
+                    if bounds.size.width < window_size.width {
+                        bounds.size.width = window_size.width;
+                    }
+                    if bounds.size.height < window_size.height {
+                        bounds.size.height = window_size.height;
+                    }
+                    root.update_layout(&self.layout_engine, bounds.origin);
+                    self.cached_bounds = bounds;
+                    self.layout_dirty = false;
+                    return bounds;
+                }
+            }
+        }
+        let fallback = Rect::from_origin_size(quick_core::geometry::Point::ZERO, window_size);
+        self.cached_bounds = fallback;
+        self.layout_dirty = false;
+        fallback
     }
 
     /// Run a layout & paint cycle on the widget tree for the given window size.
@@ -90,58 +139,17 @@ impl App {
         let bt = quick_style::base::base_theme();
         self.canvas.clear(bt.colors.bg);
 
-        if let Some(ref mut root) = self.root {
-            // Ensure root container expands to fill full window if unspecified
-            if root.style().width.is_none() {
-                root.style_mut().width = Some(quick_style::property::Dimension::Percent(100.0));
-            }
-            if root.style().height.is_none() {
-                root.style_mut().height = Some(quick_style::property::Dimension::Percent(100.0));
-            }
-
-            self.layout_engine.reset();
-            if let Ok(root_node) = root.build_layout(&mut self.layout_engine) {
-                let _ = self.layout_engine.compute_layout(root_node, window_size);
-                if let Ok(mut bounds) = self.layout_engine.get_layout(root_node) {
-                    if bounds.size.width < window_size.width {
-                        bounds.size.width = window_size.width;
-                    }
-                    if bounds.size.height < window_size.height {
-                        bounds.size.height = window_size.height;
-                    }
-                    root.update_layout(&self.layout_engine, bounds.origin);
-                    root.paint(&mut self.canvas, bounds);
-                }
-            }
+        let bounds = self.ensure_layout(window_size);
+        if let Some(ref root) = self.root {
+            root.paint(&mut self.canvas, bounds);
         }
 
         &self.canvas
     }
 
     pub fn handle_event(&mut self, event: &quick_core::event::Event, window_size: Size) -> bool {
+        let bounds = self.ensure_layout(window_size);
         if let Some(ref mut root) = self.root {
-            if root.style().width.is_none() {
-                root.style_mut().width = Some(quick_style::property::Dimension::Percent(100.0));
-            }
-            if root.style().height.is_none() {
-                root.style_mut().height = Some(quick_style::property::Dimension::Percent(100.0));
-            }
-
-            self.layout_engine.reset();
-            if let Ok(root_node) = root.build_layout(&mut self.layout_engine) {
-                let _ = self.layout_engine.compute_layout(root_node, window_size);
-                if let Ok(mut bounds) = self.layout_engine.get_layout(root_node) {
-                    if bounds.size.width < window_size.width {
-                        bounds.size.width = window_size.width;
-                    }
-                    if bounds.size.height < window_size.height {
-                        bounds.size.height = window_size.height;
-                    }
-                    root.update_layout(&self.layout_engine, bounds.origin);
-                    return root.handle_event(event, bounds);
-                }
-            }
-            let bounds = Rect::from_origin_size(quick_core::geometry::Point::ZERO, window_size);
             root.handle_event(event, bounds)
         } else {
             false

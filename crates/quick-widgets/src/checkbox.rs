@@ -132,6 +132,7 @@ impl Widget for Checkbox {
 
         if let Event::Pointer(PointerEvent { position, button, phase, .. }) = event {
             let inside = bounds.contains(*position);
+            let prev_hover = self.is_hovered;
             self.is_hovered = inside;
 
             match phase {
@@ -149,9 +150,16 @@ impl Widget for Checkbox {
                         }
                         return true;
                     }
+                    return false;
                 }
                 PointerPhase::Cancel => {
                     self.is_pressed = false;
+                    return false;
+                }
+                PointerPhase::Moved => {
+                    if prev_hover != self.is_hovered {
+                        return true;
+                    }
                 }
                 _ => {}
             }

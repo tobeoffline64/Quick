@@ -26,9 +26,14 @@ impl EventBridge {
     }
 
     pub fn translate_event(&mut self, window_event: &WindowEvent) -> Option<quick_core::event::Event> {
+        self.translate_event_scaled(window_event, 1.0)
+    }
+
+    pub fn translate_event_scaled(&mut self, window_event: &WindowEvent, scale_factor: f32) -> Option<quick_core::event::Event> {
+        let sf = if scale_factor > 0.0 { scale_factor } else { 1.0 };
         match window_event {
             WindowEvent::CursorMoved { position, .. } => {
-                self.cursor_position = Point::new(position.x as f32, position.y as f32);
+                self.cursor_position = Point::new((position.x as f32) / sf, (position.y as f32) / sf);
                 Some(quick_core::event::Event::Pointer(PointerEvent {
                     position: self.cursor_position,
                     button: None,
@@ -59,7 +64,7 @@ impl EventBridge {
                 let scroll = match delta {
                     MouseScrollDelta::LineDelta(x, y) => ScrollDelta::LineDelta(*x, *y),
                     MouseScrollDelta::PixelDelta(pos) => {
-                        ScrollDelta::PixelDelta(pos.x as f32, pos.y as f32)
+                        ScrollDelta::PixelDelta((pos.x as f32) / sf, (pos.y as f32) / sf)
                     }
                 };
                 Some(quick_core::event::Event::Scroll(scroll))
