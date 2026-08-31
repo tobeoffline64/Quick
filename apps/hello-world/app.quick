@@ -84,7 +84,7 @@
         <HStack style="gap: 8px; justify-content: center; align-items: center; margin: 4px 0px;">
             <Chip text="Wayland EGL" selected="$chip_wayland" onclick="toggle_wayland" />
             <Chip text="Pure Rust" selected="$chip_rust" onclick="toggle_rust" />
-            <Chip text="Skia 2D" selected="$chip_skia" onclick="toggle_skia" />
+            <Chip text="Vello GPU" selected="$chip_vello" onclick="toggle_skia" />
         </HStack>
 
         <!-- Action Buttons -->

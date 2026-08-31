@@ -5,6 +5,8 @@ use quick::prelude::*;
 static GLOBAL: quick::core::MiMalloc = quick::core::MiMalloc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let is_headless = std::env::var("QUICK_HEADLESS").as_deref() == Ok("1");
+
     println!("⚡ Starting Quick 'Hello World' Application on Wayland/X11...");
 
     // 1. Reactive state signals
@@ -26,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if n == 0 {
             "Click the button below to trigger high-speed reactive updates.".to_string()
         } else {
-            format!("Running Skia 2D Canvas pipeline in frame arena • {} state mutations", n)
+            format!("Running Vello GPU Compute (WGPU) & SIMD Software fallback • {} state mutations", n)
         }
     });
 
@@ -49,13 +51,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Load UI from the `.quick` declarative file
     let quick_content = include_str!("../app.quick");
-    let app = App::new(
+    let mut app = App::new(
         WindowOptions::new()
             .title("Hello World - Quick Framework (.quick format)")
             .size(640.0, 480.0),
     )
     .from_quick(quick_content, &mut data_ctx)
     .map_err(|e| format!("Failed to parse .quick file: {}", e))?;
+
+    if is_headless {
+        let canvas = app.render_frame(Size::new(640.0, 480.0));
+        println!("✅ Headless render pass successful ({} canvas commands recorded).", canvas.commands().len());
+        return Ok(());
+    }
 
     println!("🚀 Opening desktop window...");
     // 4. Launch interactive desktop window & event loop

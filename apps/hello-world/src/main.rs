@@ -103,22 +103,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    let chip_wayland = Signal::new(true);
+    let chip_rust = Signal::new(true);
+    let chip_vello = Signal::new(true);
+
     let count_desc = click_count.clone();
     let description = create_computed(move || {
         let n = count_desc.get();
         if n == 0 {
             "Unified base widgets skinned dynamically via Material You theme package.".to_string()
         } else {
-            format!("Rendering with Skia 2D in frame bump arena • {} state mutations", n)
+            format!("Rendering with Vello GPU Compute (WGPU) & SIMD Software fallback • {} state mutations", n)
         }
     });
 
     let gpu_enabled = Signal::new(true);
     let brightness = Signal::new(75.0);
-
-    let chip_wayland = Signal::new(true);
-    let chip_rust = Signal::new(true);
-    let chip_skia = Signal::new(false);
 
     // 2. Bind signals and actions to DataContext
     let mut data_ctx = DataContext::new();
@@ -128,7 +128,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     data_ctx.bind_f32_signal("brightness", brightness.clone());
     data_ctx.bind_bool_signal("chip_wayland", chip_wayland.clone());
     data_ctx.bind_bool_signal("chip_rust", chip_rust.clone());
-    data_ctx.bind_bool_signal("chip_skia", chip_skia.clone());
+    data_ctx.bind_bool_signal("chip_vello", chip_vello.clone());
+    data_ctx.bind_bool_signal("chip_skia", chip_vello.clone()); // backwards compatibility
 
     let count_inc = click_count.clone();
     data_ctx.bind_action("on_click", move || {
@@ -163,9 +164,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("🏷️ Chip 'Pure Rust' clicked! Active: {}", r_chip.get());
     });
 
-    let s_chip = chip_skia.clone();
+    let s_chip = chip_vello.clone();
     data_ctx.bind_action("toggle_skia", move || {
-        println!("🏷️ Chip 'Skia 2D' clicked! Active: {}", s_chip.get());
+        println!("🏷️ Chip 'Vello GPU' clicked! Active: {}", s_chip.get());
     });
 
     // 3. Load UI from app.quick (with theme="material-you")

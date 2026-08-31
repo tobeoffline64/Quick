@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let xml_content = include_str!("../app.xml");
     let mut app = App::new(
         WindowOptions::new()
-            .title("Quick Counter - Linux Wayland / Skia (Pure Rust)")
+            .title("Quick Counter - Linux Wayland / Vello GPU (Pure Rust)")
             .size(800.0, 600.0),
     )
     .from_xml(xml_content, &mut data_ctx)

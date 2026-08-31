@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("===============================================================");
     println!("⚡ Quick Framework: On-Device Showcase & Benchmark Suite");
-    println!("🦀 Architecture: 100% Pure Rust • Skia 2D • Wayland EGL");
+    println!("🦀 Architecture: 100% Pure Rust • Vello GPU Compute • Wayland / WGPU");
     println!("===============================================================\n");
 
     let is_benchmark_mode = env::args().any(|arg| arg == "--benchmark-mode");
