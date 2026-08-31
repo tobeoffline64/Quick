@@ -1,263 +1,244 @@
-# Silver (`.silver`) Programming Language Specification & Architecture Outline
-
-**Silver** is a lightweight, ergonomic, and reactive programming language specifically engineered for building applications on the **Quick UI Framework**. While **Rust** powers the underlying graphics, layout, and rendering engine, **Silver** allows developers to author declarative UI components, reactive state, business logic, and styling bindings without the boilerplate or borrow-checker friction of raw Rust.
+# Silver Programming Language Specification (v0.1.0)
+*The Official Technical Language and Virtual Machine Specification*
 
 ---
 
-## 1. Vision & Core Philosophy
+## 1. Introduction & Objectives
+
+**Silver** (`.silver`) is an embeddable, reactivity-first, statically and dynamically typed programming language engineered explicitly for the **Quick Native UI Framework**. 
+
+Silver replaces verbosity and compilation turnaround times with an ultra-lightweight, high-speed bytecode VM that binds fine-grained reactive signals directly to GUI components, layout constraints, and styling tokens.
+
+### Key Characteristics
+1. **First-Class Reactivity**: `signal`, `computed`, and `effect` are native language statements with automatic dependency subscription and batching.
+2. **First-Class UI Types**: Native color literals (`#6750A4`, `#RRGGBBAA`), geometric primitives, and layout tokens.
+3. **Ergonomic Swift/Rust-Inspired Syntax**: String interpolation `\(expr)`, expression-based `if`/`else`, concise type annotations (`: int`), and block closures.
+4. **Dual Execution Engine**:
+   - **Bytecode Compiler**: Emits dense, cache-friendly bytecode chunks (`Opcode`).
+   - **Stack Virtual Machine**: High-throughput register/stack interpreter with microsecond startup overhead.
+5. **Direct Quick Framework Bridge**: Seamless two-way binding with `quick_core::Signal<T>`, `DataContext`, and `.quick` declarative XML markup.
+
+---
+
+## 2. Lexical Structure
+
+### 2.1 Character Set & Encoding
+Silver source code is encoded in valid **UTF-8**. Source files typically use the `.silver` file extension.
+
+### 2.2 Whitespace and Comments
+- **Whitespace**: Space (`U+0020`), Horizontal Tab (`U+0009`), Newline (`\n`, `U+000A`), and Carriage Return (`\r`, `U+000D`). Whitespace is non-semantic except as a token delimiter.
+- **Single-Line Comments**: Begin with `//` and extend to the end of the line.
+- **Multi-Line Block Comments**: Begin with `/*` and end with `*/`. (Nesting is supported).
+
+### 2.3 Identifiers
+Identifiers name variables, signals, functions, types, and properties.
+```
+Identifier      ::= [a-zA-Z_] [a-zA-Z0-9_]*
+```
+
+### 2.4 Keywords
+The following keywords are reserved in Silver:
+
+| Category | Keywords |
+| :--- | :--- |
+| **Reactivity** | `signal`, `computed`, `effect` |
+| **Declarations** | `let`, `var`, `fn`, `component` |
+| **Control Flow** | `if`, `else`, `while`, `for`, `in`, `return` |
+| **Booleans & Null** | `true`, `false`, `null` |
+| **Logical Operators**| `and`, `or`, `not` |
+| **Import / Export** | `import`, `export`, `as` |
+
+### 2.5 Literals
+
+#### 2.5.1 Integer & Float Literals
+- **Integers**: Sequences of decimal digits `[0-9]+` (e.g. `0`, `42`, `1000`). Hexadecimal (`0x1F`) and binary (`0b1010`) prefixes are reserved.
+- **Floats**: Decimal digits with a fractional dot `[0-9]+\.[0-9]+` (e.g. `3.14`, `0.5`, `100.0`).
+
+#### 2.5.2 String Literals & String Interpolation
+String literals are enclosed in double quotes `"..."`.
+- **Escape sequences**: `\\`, `\"`, `\n`, `\t`, `\r`.
+- **String Interpolation**: Expressions enclosed in `\(...)` are evaluated dynamically and converted to strings:
+  ```silver
+  "Current count is: \(count) at step \(step + 1)"
+  ```
+
+#### 2.5.3 Hex Color Literals
+Colors can be written as native literals starting with `#`:
+- `#RGB`: Expands to `#RRGGBB` (e.g. `#F00` $\rightarrow$ Red)
+- `#RGBA`: Expands to `#RRGGBBAA` (e.g. `#F008`)
+- `#RRGGBB`: 24-bit sRGB color (e.g. `#6750A4`)
+- `#RRGGBBAA`: 32-bit RGBA color with alpha (e.g. `#6750A480`)
+
+---
+
+## 3. Type System
+
+Silver combines runtime dynamic typing with optional static type hints.
+
+### 3.1 Primitive Types
+- `null`: Represents absence of value.
+- `bool`: `true` or `false`.
+- `int`: Signed 64-bit integer (`i64`).
+- `float`: 64-bit IEEE 754 floating-point number (`f64`).
+- `string`: UTF-8 string buffer (`Arc<String>`).
+- `color`: 32-bit RGBA color tuple `(u8, u8, u8, u8)`.
+
+### 3.2 Collection Types
+- `List<T>`: Dynamically sized contiguous array of values `[Value]`.
+- `Map<K, V>`: Key-value hash map `{Key: Value}`.
+
+### 3.3 Reactive Types
+- `Signal<T>`: A mutable reactive container holding a value of type `T`. Reading tracks dependency; writing triggers subscribers.
+- `Computed<T>`: A lazily or eagerly recomputed reactive value derived from other signals.
+
+### 3.4 Function Types
+- `fn(T1, T2, ...) -> R`: First-class function or closure with parameter types and return type.
+- `NativeFn`: A host Rust function registered with the Silver VM.
+
+---
+
+## 4. Formal Grammar (EBNF)
+
+```ebnf
+Program         ::= Statement*
+
+Statement       ::= LetDecl
+                  | VarDecl
+                  | SignalDecl
+                  | ComputedDecl
+                  | EffectDecl
+                  | FunctionDecl
+                  | ComponentDecl
+                  | IfStatement
+                  | WhileStatement
+                  | ForStatement
+                  | ReturnStatement
+                  | ExprStatement
+                  | ";"
+
+LetDecl         ::= "let" Identifier (":" Type)? "=" Expression (";")?
+VarDecl         ::= "var" Identifier (":" Type)? "=" Expression (";")?
+SignalDecl      ::= "signal" Identifier (":" Type)? "=" Expression (";")?
+ComputedDecl    ::= "computed" Identifier "=" Expression (";")?
+EffectDecl      ::= "effect" Block
+
+FunctionDecl    ::= "fn" Identifier "(" ParamList? ")" ("->" Type)? Block
+ParamList       ::= Param ("," Param)*
+Param           ::= Identifier (":" Type)?
+
+ComponentDecl   ::= "component" Identifier "(" ParamList? ")" Block
+
+IfStatement     ::= "if" Expression Block ("else" (IfStatement | Block))?
+WhileStatement  ::= "while" Expression Block
+ForStatement    ::= "for" Identifier "in" Expression Block
+ReturnStatement ::= "return" Expression? (";")?
+ExprStatement   ::= Expression (";")?
+
+Block           ::= "{" Statement* "}"
+
+Type            ::= "int" | "float" | "string" | "bool" | "color" | "any"
+                  | "List" "<" Type ">"
+                  | "Signal" "<" Type ">"
+                  | Identifier
+
+Expression      ::= Assignment
+Assignment      ::= (Identifier | MemberAccess) ("=" | "+=" | "-=" | "*=" | "/=") Assignment
+                  | LogicalOr
+
+LogicalOr       ::= LogicalAnd (("or" | "||") LogicalAnd)*
+LogicalAnd      ::= Equality (("and" | "&&") Equality)*
+Equality        ::= Comparison (("==" | "!=") Comparison)*
+Comparison      ::= Term (("<" | "<=" | ">" | ">=") Term)*
+Term            ::= Factor (("+" | "-") Factor)*
+Factor          ::= Unary (("*" | "/" | "%") Unary)*
+Unary           ::= ("-" | "!" | "not") Unary | Call
+Call            ::= Primary ( "(" ArgList? ")" | "." Identifier | "[" Expression "]" )*
+ArgList         ::= Expression ("," Expression)*
+
+Primary         ::= IntegerLiteral
+                  | FloatLiteral
+                  | StringLiteral
+                  | HexColorLiteral
+                  | "true" | "false" | "null"
+                  | Identifier
+                  | "(" Expression ")"
+                  | "[" (Expression ("," Expression)*)? "]"
+                  | "{" (MapEntry ("," MapEntry)*)? "}"
+                  | IfExpression
+
+IfExpression    ::= "if" Expression (Block | Expression) "else" (Block | Expression)
+MapEntry        ::= (StringLiteral | Identifier) ":" Expression
+```
+
+---
+
+## 5. Bytecode Architecture & VM Instruction Set
+
+The Silver compiler targets a compact, stack-based bytecode virtual machine.
+
+### 5.1 Opcode Specification
+
+| Opcode | Hex | Operand | Description |
+| :--- | :--- | :--- | :--- |
+| `Constant` | `0x00` | `u16` (index) | Push constant from constant pool onto the stack |
+| `Nil` | `0x01` | None | Push `Value::Null` onto stack |
+| `True` | `0x02` | None | Push `Value::Bool(true)` onto stack |
+| `False` | `0x03` | None | Push `Value::Bool(false)` onto stack |
+| `Pop` | `0x04` | None | Pop the top value from the stack |
+| `GetGlobal` | `0x05` | `u16` (name idx) | Load global variable / computed signal by name |
+| `SetGlobal` | `0x06` | `u16` (name idx) | Store top-of-stack to global variable |
+| `GetLocal` | `0x07` | `u16` (slot) | Load value from local stack frame slot |
+| `SetLocal` | `0x08` | `u16` (slot) | Store top-of-stack into local stack frame slot |
+| `GetSignal` | `0x09` | `u16` (name idx) | Read reactive signal value (recording dependency) |
+| `SetSignal` | `0x0A` | `u16` (name idx) | Write reactive signal value (triggering dependents) |
+| `SetComputed` | `0x0B` | `u16` (name idx) | Register a dynamic computed signal chunk |
+| `Add` | `0x0C` | None | Arithmetic addition or string concatenation |
+| `Subtract` | `0x0D` | None | Arithmetic subtraction |
+| `Multiply` | `0x0E` | None | Arithmetic multiplication |
+| `Divide` | `0x0F` | None | Arithmetic division (checks division by zero) |
+| `Modulo` | `0x10` | None | Integer modulo operation |
+| `Equal` | `0x11` | None | Compare top two values for equality |
+| `Greater` | `0x12` | None | Compare `a > b` |
+| `Less` | `0x13` | None | Compare `a < b` |
+| `Not` | `0x14` | None | Logical boolean negation |
+| `Negate` | `0x15` | None | Numeric arithmetic negation (`-x`) |
+| `Jump` | `0x16` | `u16` (offset) | Unconditional forward jump |
+| `JumpIfFalse`| `0x17` | `u16` (offset) | Jump forward if top-of-stack is falsey |
+| `Loop` | `0x18` | `u16` (offset) | Unconditional backward jump to loop header |
+| `Call` | `0x19` | `u8` (arg count)| Invoke function or native host closure |
+| `Return` | `0x1A` | None | Return from function or chunk execution |
+| `ConcatString`| `0x1B` | `u8` (count) | Pop `count` items, convert to string and concatenate |
+| `MakeList` | `0x1C` | `u16` (count) | Pop `count` items and bundle into a `Value::List` |
+
+---
+
+## 6. Quick UI Runtime Integration
 
 ```mermaid
-graph TD
-    subgraph Developer_Experience["Silver (.silver) App Layer"]
-        A[Declarative UI & Logic in .silver] --> B[Reactive State: signal, computed, effect]
-        B --> C[Event Handlers & Business Logic]
-        C --> D[Dynamic Styling & Theme Hooks]
+flowchart LR
+    subgraph SilverRuntime ["Silver Language Runtime (.silver)"]
+        Lexer["Lexer & Tokens"] --> Parser["Pratt Parser"]
+        Parser --> Compiler["Bytecode Compiler"]
+        Compiler --> VM["Stack VM Interpreter"]
+        VM --> Signals["Signal & Computed Registry"]
     end
 
-    subgraph Rust_Engine["⚡ Quick Pure-Rust Engine (quick-core)"]
-        E[Silver Bytecode VM / JIT / AST Evaluator] --> F[Reactive Signal Graph]
-        F --> G[Taffy Flexbox Layout Engine]
-        G --> H[Vello GPU Compute & SIMD Rasterizer]
+    subgraph QuickEngine ["Quick Native Engine (Rust)"]
+        DataContext["quick_core::DataContext"]
+        ReactiveGraph["Reactive Dependency Graph"]
+        Markup["quick_markup (app.quick)"]
+        Widgets["quick_widgets (M3 Components)"]
+        Renderer["quick_render (Vello GPU / CPU)"]
     end
 
-    Developer_Experience --> Rust_Engine
+    Signals <===> DataContext
+    DataContext <---> ReactiveGraph
+    Markup --> Widgets
+    DataContext -.-> Widgets
+    Widgets --> Renderer
 ```
 
-1. **Zero-Friction Reactivity**: Reactive primitives (`signal`, `computed`, `effect`) are first-class language keywords, not external wrapper types.
-2. **Seamless Ecosystem Synergy**:
-   - **`quick-core`**: Hosts the Silver lexer, AST, bytecode compiler, and runtime virtual machine.
-   - **`quick-markup`**: Allows direct embedding of Silver scripts inside `.quick` XML or companion `.silver` code-behind files.
-   - **`quick-style`**: Direct access to Material You HCT color roles, design tokens, and style mutations.
-3. **Ultra-Fast Startup & Hot Reloading**: Instant parse-and-eval cycle (<1ms) enabling live hot-reloading of UI logic without recompiling Rust binaries.
-4. **Type-Inferred Safety**: Static typing with full type inference, null-safety, and pattern matching.
-
----
-
-## 2. Syntax & Language Tour
-
-### 2.1 Variables, Signals & Reactivity
-
-```silver
-// Regular immutable & mutable variables
-let app_name: string = "Quick Gallery"
-var active_tab = 0
-
-// First-class Reactive State (backed by quick-core::Signal)
-signal count: int = 0
-signal is_dark_mode: bool = true
-signal brightness: float = 75.0
-
-// Computed Signals (automatically tracks dependencies)
-computed button_label = if count == 0 {
-    "Click Me"
-} else {
-    "Clicked \(count) times!"
-}
-
-computed theme_mode = if is_dark_mode { "Dark Mode" } else { "Light Mode" }
-
-// Effects (runs whenever dependencies mutate)
-effect {
-    print("State mutated: count is now \(count), theme is \(theme_mode)")
-}
-```
-
----
-
-### 2.2 Functions, Events & Actions
-
-```silver
-// Standard function with typed parameters and return type
-fn add(a: int, b: int) -> int {
-    return a + b
-}
-
-// Action handlers bound directly to Quick UI events
-fn on_increment() {
-    count += 1
-}
-
-fn on_reset() {
-    count = 0
-}
-
-fn toggle_theme() {
-    is_dark_mode = !is_dark_mode
-    // Directly mutate Material You theme via quick-style
-    Style.set_dark_mode(is_dark_mode)
-}
-```
-
----
-
-### 2.3 Direct Markup & Component Integration
-
-Silver code can either live in a standalone `.silver` file or be embedded directly inside a `.quick` file:
-
-```silver
-// CounterComponent.silver
-import quick.ui
-import quick.style
-
-component CounterCard {
-    // Component Properties
-    prop title: string = "Reactive Counter"
-    prop initial_value: int = 0
-
-    // Component State
-    signal count: int = initial_value
-    computed status = "Current value: \(count)"
-
-    // View Definition (Direct integration with quick-markup)
-    view {
-        Card(class: "elevated", padding: 24, radius: 16) {
-            Text(text: title, size: 20, weight: "bold", color: Theme.on_surface)
-            Text(text: status, size: 14, color: Theme.secondary)
-
-            HStack(gap: 12, margin_top: 16) {
-                Button(variant: "filled", text: "Increment", onclick: fn() { count += 1 })
-                Button(variant: "tonal",  text: "Decrement", onclick: fn() { count -= 1 })
-                Button(variant: "text",   text: "Reset",     onclick: fn() { count = 0 })
-            }
-        }
-    }
-}
-```
-
----
-
-### 2.4 Dynamic Styling & Theme Integration (`quick-style`)
-
-```silver
-// Accessing Material You Design Tokens directly
-fn apply_custom_branding(seed_hex: string) {
-    let seed_color = Color.from_hex(seed_hex)
-    let palette = Theme.from_seed(seed_color, variant: .vibrant, dark: is_dark_mode)
-    
-    // Dynamically inject into quick-style
-    Style.set_active_theme(palette)
-}
-
-// Inline styling with design tokens
-let card_style = Style {
-    background: Theme.surface_container
-    border_radius: Tokens.Radius.md
-    shadow: Tokens.Elevation.level2
-    padding: Tokens.Spacing.lg
-}
-```
-
----
-
-## 3. Architecture & Compiler Pipeline (`quick-core`)
-
-```
-               ┌──────────────────────────────┐
-               │    Silver Source (.silver)   │
-               └──────────────┬───────────────┘
-                              │
-                    Lexer & SIMD Tokenizer
-                              │
-                              ▼
-               ┌──────────────────────────────┐
-               │    Abstract Syntax Tree      │
-               └──────────────┬───────────────┘
-                              │
-                  Type Checker & Validator
-                              │
-                              ▼
-               ┌──────────────────────────────┐
-               │   Silver Bytecode Compiler   │
-               └──────────────┬───────────────┘
-                              │
-                     Silver VM Runtime
-              (Stack / Register-based VM Arena)
-                              │
-             ┌────────────────┼────────────────┐
-             ▼                ▼                ▼
-     ┌───────────────┐ ┌─────────────┐ ┌──────────────┐
-     │  quick-core   │ │ quick-style │ │ quick-markup │
-     │ Signal Engine │ │ Theme Token │ │ Widget Tree  │
-     └───────────────┘ └─────────────┘ └──────────────┘
-```
-
-### 3.1 Components in `quick-core`:
-1. **`silver_lexer.rs`**: High-performance zero-allocation tokenizer with SIMD string literal and keyword scanning.
-2. **`silver_ast.rs`**: AST nodes representing expressions, statements, component declarations, signals, and closures.
-3. **`silver_parser.rs`**: Recursive-descent Pratt parser generating typed ASTs with descriptive compiler diagnostics.
-4. **`silver_vm.rs`**: Compact, register-based bytecode interpreter running inside the frame bump arena with O(1) execution overhead.
-5. **`silver_bridge.rs`**: Binds Silver variables, functions, and reactive signals directly into `quick_core::DataContext` and `quick_markup::builder`.
-
----
-
-## 4. Full Real-World Example: Material You Showcase in `.silver`
-
-```silver
-// app.silver - Complete Application Logic & View
-import quick.ui
-import quick.style
-
-app MaterialYouShowcase {
-    // 1. Reactive State
-    signal click_count: int = 0
-    signal is_gpu_active: bool = true
-    signal brightness_val: float = 75.0
-    signal selected_chip: string = "Vello GPU"
-
-    // 2. Computed Properties
-    computed greeting = if click_count == 0 {
-        "Welcome to your Silver + Quick application!"
-    } else {
-        "🎉 You clicked the button \(click_count) times! (Sub-microsecond reactivity)"
-    }
-
-    // 3. View Tree
-    view {
-        VStack(width: 100%, height: 100%, align: .center, justify: .center, background: #141218) {
-            Card(class: "main-card", max_width: 580, padding: 32, radius: 20) {
-                
-                Text(text: "SILVER LANGUAGE ACTIVE", class: "pill-badge")
-                Text(text: "Hello from Silver!", size: 26, weight: "bold", color: Theme.on_surface)
-                Text(text: greeting, size: 15, weight: "bold", color: Theme.primary)
-
-                // Controls
-                HStack(justify: .space_between, width: 100%) {
-                    Text(text: "Hardware GPU Acceleration", weight: "bold")
-                    Switch(checked: is_gpu_active, onchange: fn(val) { is_gpu_active = val })
-                }
-
-                Slider(min: 0.0, max: 100.0, value: brightness_val, onchange: fn(val) { brightness_val = val })
-
-                // Chip Selector
-                HStack(gap: 8, justify: .center) {
-                    for chip_name in ["Wayland", "Pure Rust", "Vello GPU"] {
-                        Chip(
-                            text: chip_name,
-                            selected: selected_chip == chip_name,
-                            onclick: fn() { selected_chip = chip_name }
-                        )
-                    }
-                }
-
-                // Actions
-                HStack(gap: 16, margin_top: 16) {
-                    Button(variant: "filled", text: "Click Me", onclick: fn() { click_count += 1 })
-                    Button(variant: "outlined", text: "Reset",   onclick: fn() { click_count = 0 })
-                }
-            }
-        }
-    }
-}
-```
-
----
-
-## 5. Phased Implementation Roadmap
-
-| Phase | Milestone Name | Key Deliverables |
-|---|---|---|
-| **Phase 1** | **Lexer, AST & Parser (`quick-core::silver`)** | Tokenizer, AST node structures, parser, and error diagnostics for expressions, statements, and functions. |
-| **Phase 2** | **Silver Virtual Machine (VM)** | Stack/register VM, bytecode instruction set, opcode compiler, and variable scopes in `quick-core`. |
-| **Phase 3** | **Signal & Reactivity Bridge** | First-class `signal`, `computed`, and `effect` keywords bound directly into `quick_core::Signal<T>` and `DataContext`. |
-| **Phase 4** | **`quick-markup` & `quick-style` Binding** | Embedded `<Silver>` scripting in `.quick` files, component template expansion, and dynamic token querying. |
-| **Phase 5** | **Developer Tooling & JIT / Hot-Reload** | Live file-watcher for `.silver` hot-reloading without app restart, and CLI runner (`quick run app.silver`). |
+### 6.1 Two-Way Signal Binding
+When a `.silver` file declares `signal count = 0`, the Silver runtime registers it with `quick_core::DataContext`. 
+- When a Quick `<Button on_click="increment" />` is clicked, the action fires in the Silver VM, mutating `count += 1`.
+- All bound `<Text content="$count" />` widgets immediately re-render on the next Vello frame.
