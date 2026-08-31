@@ -26,3 +26,12 @@
 ## 6. GNOME HIG Adaptive Standards
 - Center view switchers (`TabControl`) with 160–260px proportional pills in the header bar.
 - Structure multi-component layouts in boxed preference groups with 12px border radius, 1px border strokes, generous padding, and uppercase category headers.
+
+## 7. Graphics Pipeline: Vello GPU Compute & Pure-Rust Architecture
+- **Zero C++ Dependencies**: Never reintroduce C++ rendering engines (such as Skia or Qt). All graphics pipelines must remain 100% pure Rust and memory-safe.
+- **Dual-Backend Support**:
+  - **Primary**: Vello GPU compute pipeline (`quick-render::vello_scene` + `quick-window::vello_surface`) for 120+ FPS hardware acceleration.
+  - **Fallback**: CPU `SoftwareRasterizer + softbuffer` when GPU compute is unavailable or when running in headless CI mode (`QUICK_HEADLESS=1`).
+- **Vello Type Consistency**: Always import `kurbo` and `peniko` via `vello::kurbo` and `vello::peniko` to prevent dependency version conflicts.
+- **Vello Clipping**: Always use `scene.push_layer(BlendMode::default(), 1.0, transform, &clip_shape)` paired with `scene.pop_layer()`.
+- **Swapchain Presentation**: Pass `&SurfaceTexture` directly to `renderer.render_to_surface(&device, &queue, &scene, &surface_texture, &params)`.
