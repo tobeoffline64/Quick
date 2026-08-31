@@ -1,13 +1,38 @@
 use crate::canvas::{Canvas, DrawCommand};
+use fontdue::{Font as FFont, FontSettings};
+use std::sync::{Arc, OnceLock};
 use vello::kurbo::{Affine, Line, Point as KPoint, Rect as KRect, RoundedRect, RoundedRectRadii, Stroke};
-use vello::peniko::{BlendMode, Color as PColor, Fill};
-use vello::Scene;
+use vello::peniko::{Blob, BlendMode, Color as PColor, Fill, Font as VFont};
+use vello::{Glyph, Scene};
+
+static VELLO_FONT: OnceLock<VFont> = OnceLock::new();
+static FONTDUE_FONT: OnceLock<FFont> = OnceLock::new();
+
+fn get_default_vello_font() -> &'static VFont {
+    VELLO_FONT.get_or_init(|| {
+        VFont::new(Blob::new(Arc::new(quick_style::fonts::INTER_REGULAR.to_vec())), 0)
+    })
+}
+
+fn get_default_fontdue_font() -> &'static FFont {
+    FONTDUE_FONT.get_or_init(|| {
+        let settings = FontSettings {
+            scale: 40.0,
+            ..FontSettings::default()
+        };
+        FFont::from_bytes(quick_style::fonts::INTER_REGULAR, settings)
+            .expect("Failed to load Inter font for Vello")
+    })
+}
 
 pub struct VelloSceneBuilder;
 
 impl VelloSceneBuilder {
-    pub fn build(canvas: &Canvas, scene: &mut Scene) {
-        let mut transform_stack = vec![Affine::IDENTITY];
+    pub fn build(canvas: &Canvas, scene: &mut Scene, scale_factor: f32) {
+        let root_scale = if scale_factor > 0.0 { scale_factor as f64 } else { 1.0 };
+        let mut transform_stack = vec![Affine::scale(root_scale)];
+        let v_font = get_default_vello_font();
+        let f_font = get_default_fontdue_font();
 
         for cmd in canvas.commands() {
             let current_transform = *transform_stack.last().unwrap_or(&Affine::IDENTITY);
@@ -109,18 +134,43 @@ impl VelloSceneBuilder {
                 }
                 DrawCommand::DrawText { text, origin, color, font_size, .. } => {
                     let p_color = PColor::rgba8(color.r, color.g, color.b, color.a);
-                    let scale = *font_size as f64;
-                    let mut cur_x = origin.x as f64;
-                    let cur_y = origin.y as f64;
+                    let scale = *font_size;
+                    let line_height = scale * 1.35;
+                    let mut cur_x = origin.x;
+                    let mut cur_y = origin.y;
+                    let start_x = cur_x;
+                    let mut glyphs = Vec::with_capacity(text.len());
+
                     for ch in text.chars() {
-                        if ch == ' ' {
+                        if ch == '\n' {
+                            cur_x = start_x;
+                            cur_y += line_height;
+                            continue;
+                        }
+
+                        let glyph_idx = f_font.lookup_glyph_index(ch);
+                        let metrics = f_font.metrics(ch, scale);
+                        if glyph_idx > 0 {
+                            glyphs.push(Glyph {
+                                id: glyph_idx as u32,
+                                x: cur_x,
+                                y: cur_y,
+                            });
+                            cur_x += metrics.advance_width;
+                        } else if ch == ' ' {
                             cur_x += scale * 0.28;
                         } else {
-                            let char_w = scale * 0.55;
-                            let char_rect = KRect::new(cur_x, cur_y - scale * 0.8, cur_x + char_w, cur_y + scale * 0.2);
-                            scene.fill(Fill::NonZero, current_transform, p_color, None, &char_rect);
-                            cur_x += char_w;
+                            cur_x += scale * 0.55;
                         }
+                    }
+
+                    if !glyphs.is_empty() {
+                        scene
+                            .draw_glyphs(v_font)
+                            .font_size(scale)
+                            .transform(current_transform)
+                            .brush(p_color)
+                            .draw(Fill::NonZero, glyphs.into_iter());
                     }
                 }
             }
@@ -172,6 +222,6 @@ mod tests {
         canvas.pop_clip();
 
         let mut scene = Scene::new();
-        VelloSceneBuilder::build(&canvas, &mut scene);
+        VelloSceneBuilder::build(&canvas, &mut scene, 1.0);
     }
 }

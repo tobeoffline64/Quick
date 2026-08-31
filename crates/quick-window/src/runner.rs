@@ -176,7 +176,7 @@ impl<C: AppController> ApplicationHandler for WindowRunner<C> {
                 #[cfg(feature = "vello")]
                 if let Some(ref mut v_surf) = self.vello_surface {
                     v_surf.scene.reset();
-                    VelloSceneBuilder::build(canvas, &mut v_surf.scene);
+                    VelloSceneBuilder::build(canvas, &mut v_surf.scene, sf);
                     match v_surf.render(width, height) {
                         Ok(()) => return,
                         Err(err) => {

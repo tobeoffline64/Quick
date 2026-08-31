@@ -13,7 +13,7 @@ impl RenderPipeline {
     }
 
     #[cfg(feature = "vello")]
-    pub fn render_to_vello(&self, canvas: &Canvas, scene: &mut Scene) {
-        VelloSceneBuilder::build(canvas, scene);
+    pub fn render_to_vello(&self, canvas: &Canvas, scene: &mut Scene, scale_factor: f32) {
+        VelloSceneBuilder::build(canvas, scene, scale_factor);
     }
 }
